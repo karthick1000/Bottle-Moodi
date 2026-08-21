@@ -8,6 +8,7 @@ export async function getUserOrders(clerkUserId: string) {
       items: {
         include: { product: { select: { title: true, tamil: true } } },
       },
+      address: true,
     },
     orderBy: { createdAt: "desc" },
   });
@@ -29,7 +30,8 @@ export async function createOrder(
   items: { productId: number; size: string; amount: number }[],
   shipping = 79,
   discountCode?: string,
-  discountAmount = 0
+  discountAmount = 0,
+  addressId?: number
 ) {
   return prisma.order.create({
     data: {
@@ -37,6 +39,7 @@ export async function createOrder(
       shipping,
       discountCode: discountCode ?? null,
       discountAmount,
+      ...(addressId != null ? { addressId } : {}),
       items: { create: items },
     },
     include: {
