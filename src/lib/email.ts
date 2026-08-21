@@ -1,7 +1,11 @@
 import { Resend } from "resend";
 import { clerkClient } from "@clerk/nextjs/server";
 
-const resend = new Resend(process.env.RESEND_API_KEY!);
+function getResend() {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  return new Resend(key);
+}
 
 // Shape returned by createOrder / getUserOrders
 interface OrderWithItems {
@@ -146,6 +150,9 @@ export async function sendOrderConfirmationEmail(
   const subtotal = order.items.reduce((s, i) => s + i.amount, 0);
   const discount = order.discountAmount;
   const total    = subtotal + order.shipping - discount;
+
+  const resend = getResend();
+  if (!resend) return; // RESEND_API_KEY not configured — skip silently
 
   await resend.emails.send({
     from:    "Bottle Moodi <orders@updates.bottlemoodi.com>",

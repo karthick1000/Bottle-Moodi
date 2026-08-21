@@ -10,9 +10,10 @@ import { Plus, Upload, Archive, RotateCcw, Menu, X } from "lucide-react";
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
+interface ProductImage { id: number; url: string; position: number; }
 interface Product {
   id: number; slug: string; title: string; tamil: string;
-  tag: string; base: number; sub: string; active: boolean; imageUrl?: string | null;
+  tag: string; base: number; sub: string; active: boolean; images: ProductImage[];
 }
 interface DbOrder {
   id: number; clerkUserId: string; status: string; shipping: number; createdAt: string;
@@ -248,17 +249,25 @@ export default function AdminPage() {
   const handleUpload = async (id: number, file: File) => {
     const fd = new FormData();
     fd.append("file", file);
+    fd.append("productId", String(id));
     const res  = await fetch("/api/upload", { method:"POST", body:fd });
     const data = await res.json();
     if (!data.url) { flash("Upload failed"); return; }
-    // Update local state
-    setProducts(ps => ps.map(p => p.id===id ? {...p,imageUrl:data.url} : p));
-    // Persist imageUrl to DB
-    fetch(`/api/admin/products/${id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ imageUrl: data.url }),
-    }).then(() => flash("Image saved")).catch(() => flash("Image upload ok, DB save failed"));
+    // Add new image to local state
+    setProducts(ps => ps.map(p => p.id===id
+      ? { ...p, images: [...p.images, data.image] }
+      : p
+    ));
+    flash("Image saved");
+  };
+
+  const handleDeleteImage = async (productId: number, imageId: number) => {
+    await fetch(`/api/upload/${imageId}`, { method: "DELETE" });
+    setProducts(ps => ps.map(p => p.id===productId
+      ? { ...p, images: p.images.filter(img => img.id !== imageId) }
+      : p
+    ));
+    flash("Image removed");
   };
 
   const pickTab = (t: Tab) => { setTab(t); setSideOpen(false); };
@@ -492,14 +501,27 @@ export default function AdminPage() {
                       <div>
                         <input type="file" accept="image/*" ref={el=>{fileRefs.current[p.id]=el;}} className="hidden"
                           onChange={e=>{const f=e.target.files?.[0]; if(f) handleUpload(p.id,f);}}/>
-                        <button onClick={()=>fileRefs.current[p.id]?.click()}
-                          style={{ cursor:"pointer", width:38, height:50, border:`1px dashed ${C.border}`,
-                            borderRadius:3, background:"repeating-linear-gradient(38deg,#e9eddf 0 5px,#f5f7ee 5px 10px)",
-                            padding:0, overflow:"hidden", display:"flex", alignItems:"center", justifyContent:"center" }}>
-                          {p.imageUrl
-                            ? <img src={p.imageUrl} alt={p.title} style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                            : <Upload size={11} color={C.faint}/>}
-                        </button>
+                        <div style={{ display:"flex", flexWrap:"wrap", gap:3 }}>
+                          {p.images.map(img => (
+                            <div key={img.id} style={{ position:"relative", width:38, height:50 }}
+                              title="Click × to remove">
+                              <img src={img.url} alt="" style={{ width:38, height:50, objectFit:"cover", borderRadius:3, border:`1px solid ${C.border}` }}/>
+                              <button onClick={()=>handleDeleteImage(p.id,img.id)}
+                                style={{ position:"absolute", top:-4, right:-4, width:14, height:14, borderRadius:"50%",
+                                  background:"#e8452c", color:"#fff", border:"none", cursor:"pointer",
+                                  fontSize:9, lineHeight:1, display:"flex", alignItems:"center", justifyContent:"center" }}>
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                          <button onClick={()=>fileRefs.current[p.id]?.click()}
+                            title="Add image"
+                            style={{ cursor:"pointer", width:38, height:50, border:`1px dashed ${C.border}`,
+                              borderRadius:3, background:"repeating-linear-gradient(38deg,#e9eddf 0 5px,#f5f7ee 5px 10px)",
+                              padding:0, display:"flex", alignItems:"center", justifyContent:"center", flexShrink:0 }}>
+                            <Upload size={11} color={C.faint}/>
+                          </button>
+                        </div>
                       </div>
                       {(["title","tamil","base"] as const).map(key => (
                         <input key={key} value={String(p[key])} onChange={editProduct(p.id,key)}

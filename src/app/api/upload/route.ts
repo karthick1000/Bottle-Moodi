@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { v2 as cloudinary } from "cloudinary";
 import { getAdminUserId } from "@/lib/apiHelpers";
+import { addProductImage } from "@/lib/db/productImages";
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
@@ -16,11 +17,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const formData = await req.formData();
-  const file = formData.get("file") as File | null;
-  if (!file) {
-    return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  }
+  const formData  = await req.formData();
+  const file      = formData.get("file") as File | null;
+  const productId = Number(formData.get("productId"));
+
+  if (!file)           return NextResponse.json({ error: "No file provided" }, { status: 400 });
+  if (!productId || isNaN(productId))
+    return NextResponse.json({ error: "productId is required" }, { status: 400 });
 
   const bytes  = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -42,5 +45,8 @@ export async function POST(req: NextRequest) {
     }
   );
 
-  return NextResponse.json({ url: result.secure_url, publicId: result.public_id });
+  // Save URL to DB atomically with the upload
+  const image = await addProductImage(productId, result.secure_url);
+
+  return NextResponse.json({ url: result.secure_url, publicId: result.public_id, image });
 }
