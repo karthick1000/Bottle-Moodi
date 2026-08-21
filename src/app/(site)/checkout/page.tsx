@@ -148,6 +148,13 @@ export default function CheckoutPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           items: items.map((i) => ({ productId: i.productId, size: i.size, amount: i.amount })),
+          address: {
+            name:    form.name.trim(),
+            phone:   form.phone.replace(/\D/g, ""),
+            line1:   form.address.trim(),
+            city:    form.city.trim(),
+            pincode: form.pincode.trim(),
+          },
           shipping: SHIPPING,
           ...(discount > 0 && code ? { discountCode: code.toUpperCase(), discountAmount: discount } : {}),
         }),

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { SIZES, SIZE_UPCHARGE, money, type Size } from "@/lib/data";
 import { useCartStore } from "@/lib/store";
 import { useAuth } from "@clerk/nextjs";
@@ -60,15 +61,28 @@ export function ProductDetail({ product }: Props) {
       <div className="grid grid-cols-1 md:grid-cols-2 mt-5 md:mt-6 items-start gap-6 md:gap-[64px]">
         {/* Poster preview */}
         <div
-          className="hatch-light border border-[#d9cfb8] flex items-center justify-center text-center px-8 md:px-11 py-10 md:py-14"
+          className="border border-[#d9cfb8] relative overflow-hidden"
           style={{ aspectRatio: "3/4" }}
         >
-          <span
-            className="font-anek font-bold leading-[1.3]"
-            style={{ fontSize: "clamp(28px,5vw,60px)" }}
-          >
-            {product.tamil}
-          </span>
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.title}
+              fill
+              priority
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="object-cover"
+            />
+          ) : (
+            <div className="hatch-light w-full h-full flex items-center justify-center text-center px-8 md:px-11 py-10 md:py-14">
+              <span
+                className="font-anek font-bold leading-[1.3]"
+                style={{ fontSize: "clamp(28px,5vw,60px)" }}
+              >
+                {product.tamil}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Details */}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { money } from "@/lib/data";
 import type { Product } from "@/lib/data";
 
@@ -12,31 +13,45 @@ export function ProductCard({ product, dark = false }: ProductCardProps) {
     <div>
       <Link href={`/shop/${product.slug}`} className="block group">
         <div
-          className="aspect-[3/4] flex items-center justify-center text-center border p-3 md:p-[18px] transition-colors relative"
+          className="aspect-[3/4] flex items-center justify-center text-center border relative overflow-hidden transition-colors"
           style={{
-            background: dark
+            background: product.imageUrl
+              ? undefined
+              : dark
               ? "repeating-linear-gradient(38deg,#2b251d 0 8px,#211c15 8px 16px)"
               : "repeating-linear-gradient(38deg,#eae1cb 0 9px,#f4ecdc 9px 18px)",
             borderColor: dark ? "#3a332a" : "#d9cfb8",
           }}
         >
-          {!dark && (
-            <span
-              className="absolute left-2 top-2 font-mono text-[8px] md:text-[9px] tracking-[.12em]"
-              style={{ color: "#8d8371" }}
-            >
-              {product.tag}
-            </span>
+          {product.imageUrl ? (
+            <Image
+              src={product.imageUrl}
+              alt={product.title}
+              fill
+              sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
+              className="object-cover group-hover:scale-[1.02] transition-transform duration-300"
+            />
+          ) : (
+            <>
+              {!dark && (
+                <span
+                  className="absolute left-2 top-2 font-mono text-[8px] md:text-[9px] tracking-[.12em]"
+                  style={{ color: "#8d8371" }}
+                >
+                  {product.tag}
+                </span>
+              )}
+              <span
+                className="font-anek font-bold leading-[1.35]"
+                style={{
+                  fontSize: dark ? "clamp(14px,3.5vw,22px)" : "clamp(18px,4vw,30px)",
+                  color: dark ? "#f4ecdc" : "#1a1713",
+                }}
+              >
+                {product.tamil}
+              </span>
+            </>
           )}
-          <span
-            className="font-anek font-bold leading-[1.35]"
-            style={{
-              fontSize: dark ? "clamp(14px,3.5vw,22px)" : "clamp(18px,4vw,30px)",
-              color: dark ? "#f4ecdc" : "#1a1713",
-            }}
-          >
-            {product.tamil}
-          </span>
         </div>
       </Link>
       <div className="flex justify-between gap-2 mt-2.5 md:mt-3 items-baseline">
