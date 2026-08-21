@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useCartStore } from "@/lib/store";
 
@@ -47,6 +47,12 @@ export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const close = () => setMenuOpen(false);
+
+  // Prevent body scroll while the mobile nav is open
+  useEffect(() => {
+    document.body.style.overflow = menuOpen ? "hidden" : "";
+    return () => { document.body.style.overflow = ""; };
+  }, [menuOpen]);
 
   return (
     <>
@@ -145,7 +151,7 @@ export function Header() {
 
       {/* Mobile nav overlay */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-[50] pt-[60px] flex flex-col" style={{ background: "#1a1713" }}>
+        <div className="md:hidden fixed top-[60px] inset-x-0 bottom-0 z-[50] flex flex-col overflow-y-auto" style={{ background: "#1a1713" }}>
           <nav className="flex flex-col px-6 py-8 gap-1">
             {[
               { href: "/shop", label: "Kadai / Shop" },
