@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
 import { useCartStore } from "@/lib/store";
 
 export function Header() {
@@ -25,6 +26,29 @@ export function Header() {
           </Link>
 
           <div className="flex items-center gap-3">
+            {/* Auth — signed out: sign in link; signed in: user avatar */}
+            <SignedOut>
+              <SignInButton mode="redirect">
+                <button className="hidden md:block cursor-pointer border-0 bg-transparent text-[#c4b79c] hover:text-[#e8452c] text-[13px] font-medium transition-colors">
+                  Sign in
+                </button>
+              </SignInButton>
+            </SignedOut>
+            <SignedIn>
+              <UserButton
+                appearance={{
+                  elements: {
+                    avatarBox: "w-8 h-8 rounded-sm",
+                    userButtonPopoverCard: "rounded-sm shadow-lg",
+                  },
+                  variables: {
+                    colorPrimary: "#e8452c",
+                    borderRadius: "2px",
+                  },
+                }}
+              />
+            </SignedIn>
+
             {/* Cart button — always visible */}
             <button
               onClick={toggleCart}

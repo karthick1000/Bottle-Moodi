@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
+import { useUser, UserButton } from "@clerk/nextjs";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -190,9 +191,7 @@ const TABS: [Tab, string][] = [
 // ═══════════════════════════════════════════════════════════════════════════
 
 export default function AdminPage() {
-  const [authed,  setAuthed]  = useState(false);
-  const [user,    setUser]    = useState("");
-  const [pass,    setPass]    = useState("");
+  const { user: clerkUser } = useUser();
   const [tab,     setTab]     = useState<Tab>("dash");
   const [saved,   setSaved]   = useState("");
   const [sideOpen,setSideOpen]= useState(false);
@@ -234,50 +233,6 @@ export default function AdminPage() {
 
   const pickTab = (t: Tab) => { setTab(t); setSideOpen(false); };
 
-  // ── Login ─────────────────────────────────────────────────────────────
-
-  if (!authed) return (
-    <>
-      <style>{RESPONSIVE_CSS}</style>
-      <div style={{ minHeight:"100vh", display:"flex", alignItems:"center", justifyContent:"center",
-        background:C.loginBg, padding:16 }}>
-        <div style={{ width:"100%", maxWidth:360, background:C.card, border:`1px solid ${C.border}`,
-          borderRadius:6, padding:"24px 28px" }}>
-          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
-            <div style={{ fontFamily:"var(--font-bakbak)", fontSize:17, letterSpacing:".02em", color:C.dark }}>
-              BOTTLEMOODI
-            </div>
-            <CapLogo size={38}/>
-          </div>
-          <h1 style={{ margin:"8px 0 2px", fontFamily:"var(--font-bakbak)", fontSize:24,
-            fontWeight:400, letterSpacing:".01em", color:C.dark }}>Admin sign in</h1>
-          <div style={{ fontSize:13, color:C.muted, marginBottom:22 }}>Internal tool. Staff accounts only.</div>
-
-          {[
-            { label:"Email", type:"text",     value:user, set:(v:string)=>setUser(v), placeholder:"you@bottlemoodi.com" },
-            { label:"Password", type:"password", value:pass, set:(v:string)=>setPass(v), placeholder:"••••••••" },
-          ].map(f => (
-            <div key={f.label}>
-              <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#3b4a42", marginBottom:6 }}>{f.label}</label>
-              <input type={f.type} value={f.value} onChange={e=>f.set(e.target.value)}
-                placeholder={f.placeholder}
-                style={{ width:"100%", boxSizing:"border-box", border:`1px solid ${C.border}`,
-                  borderRadius:4, padding:"10px 12px", fontSize:14, outline:"none",
-                  marginBottom:14, background:"#fff" }}
-                onKeyDown={e=>e.key==="Enter"&&setAuthed(true)}/>
-            </div>
-          ))}
-
-          <button onClick={()=>setAuthed(true)}
-            style={{ width:"100%", cursor:"pointer", border:"none", background:C.dark,
-              color:C.card, fontSize:14, fontWeight:600, padding:11, borderRadius:4 }}>
-            Sign in
-          </button>
-        </div>
-      </div>
-    </>
-  );
-
   // ── Sidebar inner ─────────────────────────────────────────────────────
 
   const SidebarContent = () => (
@@ -305,12 +260,16 @@ export default function AdminPage() {
         ))}
       </nav>
       <div style={{ marginTop:"auto", padding:"0 8px" }}>
-        <div style={{ fontSize:12, color:"#7c8b80" }}>{user||"admin@bottlemoodi.com"}</div>
-        <button onClick={()=>{ setAuthed(false); setPass(""); setSideOpen(false); }}
-          style={{ cursor:"pointer", marginTop:8, border:"1px solid #31423b", background:"transparent",
-            color:C.sideText, fontSize:12, padding:"7px 12px", borderRadius:4 }}>
-          Sign out
-        </button>
+        <div style={{ fontSize:12, color:"#7c8b80", marginBottom:10 }}>
+          {clerkUser?.primaryEmailAddress?.emailAddress ?? "admin"}
+        </div>
+        <UserButton
+          appearance={{
+            elements: { avatarBox: "w-7 h-7 rounded-sm" },
+            variables: { colorPrimary: C.red, borderRadius: "2px" },
+          }}
+          showName={false}
+        />
       </div>
     </aside>
   );
