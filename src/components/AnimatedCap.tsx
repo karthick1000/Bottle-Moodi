@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useCallback } from "react";
 
 interface AnimatedCapProps {
   heroSlotId: string;
@@ -10,7 +10,6 @@ interface AnimatedCapProps {
 export function AnimatedCap({ heroSlotId, headerSlotId }: AnimatedCapProps) {
   const capRef = useRef<HTMLDivElement>(null);
   const txtRef = useRef<HTMLSpanElement>(null);
-  const heroStartRef = useRef<number | null>(null);
   const rafRef = useRef<number>(0);
 
   const tick = useCallback(() => {
@@ -29,23 +28,24 @@ export function AnimatedCap({ heroSlotId, headerSlotId }: AnimatedCapProps) {
     let x = tx, y = ty, size = ts, t = 1;
 
     if (hr && hr.width) {
-      if (heroStartRef.current == null || hr.top > heroStartRef.current) {
-        heroStartRef.current = hr.top;
-      }
-      const range = Math.max(1, heroStartRef.current - ty);
-      t = Math.min(1, Math.max(0, (heroStartRef.current - hr.top) / range));
+      const scrollY = window.scrollY;
+      // Document-space position of the hero slot centre — stable across layout shifts
+      const heroDocCenterY = hr.top + scrollY + hr.height / 2;
+      // Scroll distance at which the hero centre reaches the header centre
+      const transitionRange = Math.max(1, heroDocCenterY - ty);
+      t = Math.min(1, Math.max(0, scrollY / transitionRange));
+
       const lerp = (a: number, b: number) => a + (b - a) * t;
       x = lerp(hr.left + hr.width / 2, tx);
       y = lerp(hr.top + hr.height / 2, ty);
       size = lerp(hr.width, ts);
-    } else {
-      heroStartRef.current = null;
     }
 
     cap.style.left = x.toFixed(1) + "px";
     cap.style.top = y.toFixed(1) + "px";
     cap.style.width = cap.style.height = size.toFixed(1) + "px";
     cap.style.transform = `translate(-50%,-50%) rotate(${(-7 + 367 * t).toFixed(1)}deg)`;
+    cap.style.opacity = "1";
 
     if (txtRef.current) {
       txtRef.current.style.fontSize = Math.max(8, size * 0.17).toFixed(1) + "px";
@@ -55,6 +55,12 @@ export function AnimatedCap({ heroSlotId, headerSlotId }: AnimatedCapProps) {
   const loop = useCallback(() => {
     tick();
     rafRef.current = requestAnimationFrame(loop);
+  }, [tick]);
+
+  // Position correctly before the browser's first paint — prevents the flash
+  // of the hardcoded fallback position on any viewport size.
+  useLayoutEffect(() => {
+    tick();
   }, [tick]);
 
   useEffect(() => {
@@ -77,6 +83,7 @@ export function AnimatedCap({ heroSlotId, headerSlotId }: AnimatedCapProps) {
         top: 280,
         width: 200,
         height: 200,
+        opacity: 0,
         background: "repeating-conic-gradient(from 0deg, #e8452c 0 4.2deg, #a82d19 4.2deg 8.4deg)",
         boxShadow: "inset 0 0 0 2px rgba(0,0,0,.28)",
         transform: "translate(-50%,-50%) rotate(-7deg)",
