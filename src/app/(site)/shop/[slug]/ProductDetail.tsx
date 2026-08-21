@@ -50,7 +50,7 @@ export function ProductDetail({ product }: Props) {
   };
 
   return (
-    <main className="max-w-[1400px] mx-auto px-4 md:px-7 pt-6 md:pt-8 pb-16 md:pb-[96px]">
+    <main className="w-full max-w-[1400px] mx-auto px-4 md:px-7 pt-6 md:pt-8 pb-16 md:pb-[96px]">
       <Link
         href="/shop"
         className="font-mono text-[11px] md:text-[12px] tracking-[.12em] text-[#6e6455] hover:text-dark inline-flex items-center gap-1"

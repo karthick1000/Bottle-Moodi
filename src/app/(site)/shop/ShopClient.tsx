@@ -28,20 +28,20 @@ export function ShopClient({ products }: Props) {
   const visible = products.filter((p) => filter === "All" || p.tag === filter);
 
   return (
-    <main className="max-w-[1400px] mx-auto px-4 md:px-7 py-10 md:py-[52px] pb-16 md:pb-[96px]">
+    <main className="w-full max-w-[1400px] mx-auto px-4 md:px-7 py-10 md:py-[52px] pb-16 md:pb-[96px]">
       <div className="flex items-end justify-between gap-4 flex-wrap border-b-[3px] border-double border-dark pb-4 md:pb-5">
-        <div>
+        <div className="min-w-0">
           <span className="font-bakbak text-[11px] md:text-[12px] tracking-[.3em] text-[#e8452c]">
             KADAI
           </span>
           <h1
             className="mt-2 md:mt-3 font-bakbak leading-[.98]"
-            style={{ fontSize: "clamp(32px,5vw,66px)" }}
+            style={{ fontSize: "clamp(28px,5vw,66px)" }}
           >
             ALL POSTERS
           </h1>
         </div>
-        <span className="font-mono text-[11px] md:text-[12px] text-[#6e6455]">
+        <span className="font-mono text-[11px] md:text-[12px] text-[#6e6455] shrink-0">
           {visible.length} PRINTS
         </span>
       </div>

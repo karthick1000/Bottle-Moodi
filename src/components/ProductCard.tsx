@@ -58,7 +58,7 @@ export function ProductCard({ product, dark = false }: ProductCardProps) {
       <div className="flex justify-between gap-2 mt-2.5 md:mt-3 items-baseline">
         <Link
           href={`/shop/${product.slug}`}
-          className="font-bakbak text-[13px] md:text-[15px] hover:text-[#e8452c] leading-tight"
+          className="font-bakbak text-[13px] md:text-[15px] hover:text-[#e8452c] leading-tight min-w-0 break-words"
         >
           {product.title}
         </Link>
