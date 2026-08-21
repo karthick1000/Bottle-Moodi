@@ -145,7 +145,7 @@ export function Header() {
 
       {/* Mobile nav overlay */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 z-30 pt-[60px] flex flex-col" style={{ background: "#1a1713" }}>
+        <div className="md:hidden fixed inset-0 z-[50] pt-[60px] flex flex-col" style={{ background: "#1a1713" }}>
           <nav className="flex flex-col px-6 py-8 gap-1">
             {[
               { href: "/shop", label: "Kadai / Shop" },
