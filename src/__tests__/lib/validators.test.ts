@@ -6,6 +6,9 @@ import {
   updateOrderStatusSchema,
   createProductSchema,
   updateProductSchema,
+  validateDiscountSchema,
+  createDiscountCodeSchema,
+  updateDiscountCodeSchema,
 } from '@/lib/validators';
 
 describe('addCartItemSchema', () => {
@@ -136,5 +139,111 @@ describe('updateProductSchema', () => {
 
   it('rejects invalid base', () => {
     expect(() => updateProductSchema.parse({ base: -5 })).toThrow();
+  });
+});
+
+describe('validateDiscountSchema', () => {
+  it('accepts valid code and orderTotal', () => {
+    expect(validateDiscountSchema.parse({ code: 'SAVE10', orderTotal: 500 }))
+      .toEqual({ code: 'SAVE10', orderTotal: 500 });
+  });
+
+  it('accepts orderTotal of 0', () => {
+    expect(validateDiscountSchema.parse({ code: 'X', orderTotal: 0 })).toMatchObject({ orderTotal: 0 });
+  });
+
+  it('rejects missing code', () => {
+    expect(() => validateDiscountSchema.parse({ orderTotal: 500 })).toThrow();
+  });
+
+  it('rejects empty code', () => {
+    expect(() => validateDiscountSchema.parse({ code: '', orderTotal: 500 })).toThrow();
+  });
+
+  it('rejects missing orderTotal', () => {
+    expect(() => validateDiscountSchema.parse({ code: 'SAVE10' })).toThrow();
+  });
+
+  it('rejects negative orderTotal', () => {
+    expect(() => validateDiscountSchema.parse({ code: 'SAVE10', orderTotal: -1 })).toThrow();
+  });
+});
+
+describe('createDiscountCodeSchema', () => {
+  const valid = { code: 'moodi10', type: 'PERCENT' as const, value: 10 };
+
+  it('accepts minimal valid input and uppercases code', () => {
+    const result = createDiscountCodeSchema.parse(valid);
+    expect(result.code).toBe('MOODI10');
+    expect(result.type).toBe('PERCENT');
+    expect(result.value).toBe(10);
+  });
+
+  it('accepts FLAT type', () => {
+    expect(createDiscountCodeSchema.parse({ ...valid, type: 'FLAT' }))
+      .toMatchObject({ type: 'FLAT' });
+  });
+
+  it('accepts all optional fields', () => {
+    const full = { ...valid, minOrder: 500, maxUses: 100, active: true, expiresAt: null };
+    expect(createDiscountCodeSchema.parse(full)).toMatchObject({ minOrder: 500, maxUses: 100 });
+  });
+
+  it('rejects code shorter than 2 chars', () => {
+    expect(() => createDiscountCodeSchema.parse({ ...valid, code: 'X' })).toThrow();
+  });
+
+  it('rejects non-positive value', () => {
+    expect(() => createDiscountCodeSchema.parse({ ...valid, value: 0 })).toThrow();
+  });
+
+  it('rejects invalid type', () => {
+    expect(() => createDiscountCodeSchema.parse({ ...valid, type: 'BOGUS' })).toThrow();
+  });
+
+  it('rejects code longer than 20 chars', () => {
+    expect(() => createDiscountCodeSchema.parse({ ...valid, code: 'A'.repeat(21) })).toThrow();
+  });
+
+  it('rejects negative minOrder', () => {
+    expect(() => createDiscountCodeSchema.parse({ ...valid, minOrder: -1 })).toThrow();
+  });
+});
+
+describe('updateDiscountCodeSchema', () => {
+  it('accepts empty object (all optional)', () => {
+    expect(updateDiscountCodeSchema.parse({})).toEqual({});
+  });
+
+  it('accepts partial update of active only', () => {
+    expect(updateDiscountCodeSchema.parse({ active: false })).toEqual({ active: false });
+  });
+
+  it('accepts partial update of value only', () => {
+    expect(updateDiscountCodeSchema.parse({ value: 20 })).toMatchObject({ value: 20 });
+  });
+});
+
+describe('createOrderSchema with discount fields', () => {
+  const validItem = { productId: 1, size: 'A4', amount: 499 };
+
+  it('accepts discountCode and discountAmount', () => {
+    const result = createOrderSchema.parse({
+      items: [validItem],
+      discountCode: 'SAVE10',
+      discountAmount: 50,
+    });
+    expect(result.discountCode).toBe('SAVE10');
+    expect(result.discountAmount).toBe(50);
+  });
+
+  it('accepts without discount fields', () => {
+    const result = createOrderSchema.parse({ items: [validItem] });
+    expect(result.discountCode).toBeUndefined();
+    expect(result.discountAmount).toBeUndefined();
+  });
+
+  it('rejects negative discountAmount', () => {
+    expect(() => createOrderSchema.parse({ items: [validItem], discountAmount: -5 })).toThrow();
   });
 });

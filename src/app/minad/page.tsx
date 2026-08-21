@@ -22,47 +22,20 @@ interface Order {
   id: string; name: string; items: string; total: string; status: string; dbId?: number;
 }
 interface DiscountCode {
-  code: string; pct: string; uses: string; live: boolean;
+  id: number; code: string; type: string; value: number;
+  minOrder?: number | null; maxUses?: number | null; usedCount: number;
+  active: boolean; expiresAt?: string | null; createdAt: string;
 }
 
-// ── Seed data ──────────────────────────────────────────────────────────────
+interface DashData {
+  revenue30d: number; orders30d: number; unitsSold: number; avgOrder: number;
+  revenueChart: { date: string; revenue: number }[];
+  weeklyBars: { day: string; units: number }[];
+  topPrints: { title: string; units: number }[];
+  statusPie: { name: string; value: number; color?: string }[];
+}
 
-const REVENUE_30 = [
-  { d:"Jul 22",rev:4120}, { d:"Jul 24",rev:7290}, { d:"Jul 26",rev:3400},
-  { d:"Jul 28",rev:7100}, { d:"Jul 30",rev:6910}, { d:"Aug 1", rev:9200},
-  { d:"Aug 3", rev:4200}, { d:"Aug 5", rev:8100}, { d:"Aug 7", rev:7300},
-  { d:"Aug 9", rev:6400}, { d:"Aug 11",rev:4100}, { d:"Aug 13",rev:10200},
-  { d:"Aug 15",rev:11400},{ d:"Aug 17",rev:5100}, { d:"Aug 19",rev:9300},
-  { d:"Aug 20",rev:10800},
-];
-
-const WEEKLY_BARS = [
-  { day:"Mon",h:46},{ day:"Tue",h:62},{ day:"Wed",h:38},
-  { day:"Thu",h:78},{ day:"Fri",h:96},{ day:"Sat",h:84},{ day:"Sun",h:54},
-];
-
-const TOP_PRINTS = [
-  { title:"Rendu Minute",      units:"92 units" },
-  { title:"Meter Podu",        units:"74 units" },
-  { title:"Filter Coffee Only",units:"61 units" },
-  { title:"Semma Scene",       units:"48 units" },
-];
-
-const STATUS_PIE = [
-  { name:"Delivered",value:185,color:"#2f7d55" },
-  { name:"Shipped",  value:67, color:"#1a5fa8" },
-  { name:"Packed",   value:24, color:"#6d28d9" },
-  { name:"Printing", value:22, color:"#a8781a" },
-  { name:"New",      value:14, color:"#e8452c" },
-];
-
-// P0 and O0 removed — data is now fetched from the DB
-
-const C0: DiscountCode[] = [
-  { code:"MOODI10",  pct:"10%", uses:"87 / ∞",   live:true  },
-  { code:"FIRSTWALL",pct:"₹100",uses:"212 / 500", live:true  },
-  { code:"DIWALI24", pct:"20%", uses:"431 / 431", live:false },
-];
+// ── Seed data removed — all data fetched from DB ──────────────────────────
 
 // ── Palette ────────────────────────────────────────────────────────────────
 
@@ -181,17 +154,47 @@ export default function AdminPage() {
   const [saved,   setSaved]   = useState("");
   const [sideOpen,setSideOpen]= useState(false);
 
-  const [products, setProducts] = useState<Product[]>([]);
-  const [orders,   setOrders]   = useState<Order[]>([]);
-  const [codes,    setCodes]    = useState<DiscountCode[]>(C0);
-  const [newCode,  setNewCode]  = useState("");
-  const [newPct,   setNewPct]   = useState("");
+  const [products,    setProducts]    = useState<Product[]>([]);
+  const [orders,      setOrders]      = useState<Order[]>([]);
+  const [codes,       setCodes]       = useState<DiscountCode[]>([]);
+  const [newCode,     setNewCode]     = useState("");
+  const [newPct,      setNewPct]      = useState("");
+  const [newType,     setNewType]     = useState<"PERCENT"|"FLAT">("PERCENT");
+  const [dashLoading, setDashLoading] = useState(true);
+  const [dashData,    setDashData]    = useState<DashData>({
+    revenue30d: 0, orders30d: 0, unitsSold: 0, avgOrder: 0,
+    revenueChart: [], weeklyBars: [], topPrints: [], statusPie: [],
+  });
   const [tagline,  setTagline]  = useState("Bottle Moodi — Mood-க்கு ஏத்த Design");
   const [headline, setHeadline] = useState("NORMAL IS NOT OUR SIZE");
   const [strip,    setStrip]    = useState("NOW SHOWING · POSTERS · CHENNAI");
   const [featured, setFeatured] = useState<number[]>([]);
 
   const fileRefs = useRef<Record<number, HTMLInputElement|null>>({});
+
+  // Fetch dashboard stats from DB
+  useEffect(() => {
+    setDashLoading(true);
+    fetch("/api/admin/dashboard")
+      .then(r => r.json())
+      .then((data: DashData) => {
+        if (data && typeof data.revenue30d === "number") {
+          setDashData(data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setDashLoading(false));
+  }, []);
+
+  // Fetch discounts from DB
+  useEffect(() => {
+    fetch("/api/admin/discounts")
+      .then(r => r.json())
+      .then((data: DiscountCode[]) => {
+        if (Array.isArray(data)) setCodes(data);
+      })
+      .catch(() => {});
+  }, []);
 
   // Fetch products from DB
   useEffect(() => {
@@ -346,15 +349,14 @@ export default function AdminPage() {
             {tab==="dash" && <>
               <div className="bm-stat-grid">
                 {[
-                  { label:"REVENUE (30D)",value:"₹1,84,200",delta:"+18% vs last month" },
-                  { label:"ORDERS (30D)", value:"312",       delta:"+24 this week" },
-                  { label:"UNITS SOLD",   value:"489",       delta:"+9% vs last month" },
-                  { label:"AVG ORDER",    value:"₹591",      delta:"+₹32" },
-                ].map(({ label, value, delta }) => (
+                  { label:"REVENUE (30D)", value: dashLoading ? "—" : `₹${dashData.revenue30d.toLocaleString("en-IN")}` },
+                  { label:"ORDERS (30D)",  value: dashLoading ? "—" : String(dashData.orders30d) },
+                  { label:"UNITS SOLD",    value: dashLoading ? "—" : String(dashData.unitsSold) },
+                  { label:"AVG ORDER",     value: dashLoading ? "—" : `₹${dashData.avgOrder.toLocaleString("en-IN")}` },
+                ].map(({ label, value }) => (
                   <div key={label} style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:14 }}>
                     <div style={{ fontSize:11, color:C.muted, fontWeight:600, letterSpacing:".04em" }}>{label}</div>
                     <div className="bm-stat-val" style={{ fontSize:24, fontWeight:600, marginTop:6, letterSpacing:"-.02em" }}>{value}</div>
-                    <div style={{ fontSize:12, color:C.green, marginTop:4 }}>{delta}</div>
                   </div>
                 ))}
               </div>
@@ -363,7 +365,7 @@ export default function AdminPage() {
               <div className="bm-rev-chart">
                 <div style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>Revenue — last 30 days</div>
                 <ResponsiveContainer width="100%" height={150}>
-                  <AreaChart data={REVENUE_30} margin={{ top:4, right:4, bottom:0, left:0 }}>
+                  <AreaChart data={dashData.revenueChart} margin={{ top:4, right:4, bottom:0, left:0 }}>
                     <defs>
                       <linearGradient id="revG2" x1="0" y1="0" x2="0" y2="1">
                         <stop offset="0%" stopColor={C.red} stopOpacity={0.22}/>
@@ -371,11 +373,11 @@ export default function AdminPage() {
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke={C.rowBorder} vertical={false}/>
-                    <XAxis dataKey="d" tick={{ fontSize:9.5, fill:C.faint }} tickLine={false} axisLine={false} interval={4}/>
+                    <XAxis dataKey="date" tick={{ fontSize:9.5, fill:C.faint }} tickLine={false} axisLine={false} interval={4}/>
                     <YAxis tick={{ fontSize:9.5, fill:C.faint }} tickLine={false} axisLine={false}
                       tickFormatter={v=>`₹${(v/1000).toFixed(0)}k`} width={36}/>
                     <Tooltip content={<RevTip/>}/>
-                    <Area type="monotone" dataKey="rev" stroke={C.red} strokeWidth={2}
+                    <Area type="monotone" dataKey="revenue" stroke={C.red} strokeWidth={2}
                       fill="url(#revG2)" dot={false} activeDot={{ r:4, fill:C.red, stroke:C.card, strokeWidth:2 }}/>
                   </AreaChart>
                 </ResponsiveContainer>
@@ -386,14 +388,14 @@ export default function AdminPage() {
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:16 }}>
                   <div style={{ fontSize:13, fontWeight:600, marginBottom:12 }}>Units sold — last 7 days</div>
                   <ResponsiveContainer width="100%" height={140}>
-                    <BarChart data={WEEKLY_BARS} margin={{ top:0, right:0, bottom:0, left:-20 }}>
+                    <BarChart data={dashData.weeklyBars} margin={{ top:0, right:0, bottom:0, left:-20 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke={C.rowBorder} vertical={false}/>
                       <XAxis dataKey="day" tick={{ fontSize:10.5, fill:C.faint }} tickLine={false} axisLine={false}/>
                       <YAxis tick={{ fontSize:9.5, fill:C.faint }} tickLine={false} axisLine={false}/>
                       <Tooltip content={<BarTip/>}/>
-                      <Bar dataKey="h" radius={[2,2,0,0]}>
-                        {WEEKLY_BARS.map((d,i) => (
-                          <Cell key={i} fill={d.h===96 ? C.red : `rgba(232,69,44,${0.45+i*0.07})`}/>
+                      <Bar dataKey="units" radius={[2,2,0,0]}>
+                        {dashData.weeklyBars.map((d,i) => (
+                          <Cell key={i} fill={`rgba(232,69,44,${0.45+i*0.07})`}/>
                         ))}
                       </Bar>
                     </BarChart>
@@ -405,10 +407,10 @@ export default function AdminPage() {
                   <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, padding:16 }}>
                     <div style={{ fontSize:13, fontWeight:600, marginBottom:10 }}>Top prints</div>
                     <div style={{ display:"grid", gap:9 }}>
-                      {TOP_PRINTS.map(t => (
+                      {dashData.topPrints.map(t => (
                         <div key={t.title} style={{ display:"flex", justifyContent:"space-between",
                           fontSize:13.5, borderBottom:`1px solid ${C.rowBorder}`, paddingBottom:8 }}>
-                          <span>{t.title}</span><span style={{ color:C.muted }}>{t.units}</span>
+                          <span>{t.title}</span><span style={{ color:C.muted }}>{t.units} units</span>
                         </div>
                       ))}
                     </div>
@@ -419,21 +421,21 @@ export default function AdminPage() {
                     <div style={{ display:"flex", alignItems:"center", gap:12 }}>
                       <div style={{ position:"relative", flexShrink:0 }}>
                         <PieChart width={90} height={90}>
-                          <Pie data={STATUS_PIE} cx={45} cy={45} innerRadius={28} outerRadius={43}
+                          <Pie data={dashData.statusPie} cx={45} cy={45} innerRadius={28} outerRadius={43}
                             paddingAngle={2} dataKey="value" stroke="none">
-                            {STATUS_PIE.map((e,i) => <Cell key={i} fill={e.color}/>)}
+                            {dashData.statusPie.map((e,i) => <Cell key={i} fill={e.color ?? C.faint}/>)}
                           </Pie>
                         </PieChart>
                         <div style={{ position:"absolute", top:"50%", left:"50%",
                           transform:"translate(-50%,-50%)", textAlign:"center", pointerEvents:"none" }}>
-                          <div style={{ fontSize:14, fontWeight:700 }}>312</div>
+                          <div style={{ fontSize:14, fontWeight:700 }}>{dashLoading ? "—" : dashData.orders30d}</div>
                           <div style={{ fontSize:8, color:C.faint, fontWeight:600 }}>ORDERS</div>
                         </div>
                       </div>
                       <div style={{ display:"grid", gap:5 }}>
-                        {STATUS_PIE.map(d => (
+                        {dashData.statusPie.map(d => (
                           <div key={d.name} style={{ display:"flex", alignItems:"center", gap:6, fontSize:12 }}>
-                            <div style={{ width:7, height:7, borderRadius:"50%", background:d.color, flexShrink:0 }}/>
+                            <div style={{ width:7, height:7, borderRadius:"50%", background:d.color ?? C.faint, flexShrink:0 }}/>
                             <span style={{ color:"#3b4a42" }}>{d.name}</span>
                             <span style={{ color:C.faint, marginLeft:8 }}>{d.value}</span>
                           </div>
@@ -599,11 +601,33 @@ export default function AdminPage() {
                   style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"9px 12px",
                     fontSize:13, outline:"none", textTransform:"uppercase", width:140, background:C.card }}/>
                 <input value={newPct} onChange={e=>setNewPct(e.target.value)}
-                  placeholder="% off"
+                  placeholder="Value"
                   style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"9px 12px",
                     fontSize:13, outline:"none", width:80, background:C.card }}/>
+                <select value={newType} onChange={e=>setNewType(e.target.value as "PERCENT"|"FLAT")}
+                  style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"9px 10px",
+                    fontSize:13, outline:"none", background:C.card, cursor:"pointer" }}>
+                  <option value="PERCENT">% off</option>
+                  <option value="FLAT">₹ flat</option>
+                </select>
                 <button
-                  onClick={()=>{ const code=newCode.trim(); if(!code) return flash("Enter a code"); setCodes(cs=>[{code,pct:(newPct||"10")+"%",uses:"0 / ∞",live:true},...cs]); setNewCode(""); setNewPct(""); flash("Code created"); }}
+                  onClick={()=>{
+                    const code = newCode.trim();
+                    if (!code) return flash("Enter a code");
+                    const val = parseInt(newPct, 10);
+                    if (!val || val <= 0) return flash("Enter a valid value");
+                    fetch("/api/admin/discounts", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ code, type: newType, value: val }),
+                    })
+                      .then(r => r.json())
+                      .then((d: DiscountCode) => {
+                        if (d.id) { setCodes(cs => [d, ...cs]); setNewCode(""); setNewPct(""); flash("Code created"); }
+                        else flash("Create failed");
+                      })
+                      .catch(() => flash("Create failed"));
+                  }}
                   style={{ cursor:"pointer", border:"none", background:C.dark, color:C.card,
                     fontSize:13, fontWeight:600, padding:"9px 14px", borderRadius:4 }}>
                   Create code
@@ -612,26 +636,45 @@ export default function AdminPage() {
 
               <div className="bm-table-wrap">
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:480 }}>
-                  <div style={{ display:"grid", gridTemplateColumns:"1.2fr .8fr .8fr 1fr .8fr",
+                  <div style={{ display:"grid", gridTemplateColumns:"1.2fr .8fr .8fr 1fr .8fr .6fr",
                     gap:12, padding:"11px 16px", background:C.thead, borderBottom:`1px solid ${C.border}`,
                     fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
-                    <span>CODE</span><span>DISCOUNT</span><span>USES</span><span>STATUS</span><span></span>
+                    <span>CODE</span><span>DISCOUNT</span><span>USES</span><span>STATUS</span><span></span><span></span>
                   </div>
-                  {codes.map((c,i) => (
-                    <div key={c.code}
-                      style={{ display:"grid", gridTemplateColumns:"1.2fr .8fr .8fr 1fr .8fr",
+                  {codes.map(c => (
+                    <div key={c.id}
+                      style={{ display:"grid", gridTemplateColumns:"1.2fr .8fr .8fr 1fr .8fr .6fr",
                         gap:12, padding:"12px 16px", borderBottom:`1px solid ${C.rowBorder}`,
                         alignItems:"center", fontSize:13.5 }}>
                       <span style={{ fontFamily:"ui-monospace,Menlo,monospace", fontSize:12.5 }}>{c.code}</span>
-                      <span>{c.pct}</span>
-                      <span style={{ color:C.muted }}>{c.uses}</span>
-                      <span style={{ fontSize:11.5, fontWeight:600, color:c.live?C.green:C.faint }}>
-                        {c.live?"Active":"Expired"}
+                      <span>{c.type === "PERCENT" ? `${c.value}%` : `₹${c.value}`}</span>
+                      <span style={{ color:C.muted }}>{c.usedCount}{c.maxUses != null ? ` / ${c.maxUses}` : " / ∞"}</span>
+                      <span style={{ fontSize:11.5, fontWeight:600, color:c.active?C.green:C.faint }}>
+                        {c.active ? "Active" : "Inactive"}
                       </span>
-                      <button onClick={()=>{ setCodes(cs=>cs.map((x,j)=>j===i?{...x,live:!x.live}:x)); flash(c.live?"Disabled":"Enabled"); }}
+                      <button onClick={()=>{
+                        fetch(`/api/admin/discounts/${c.id}`, {
+                          method:"PATCH",
+                          headers:{"Content-Type":"application/json"},
+                          body:JSON.stringify({active:!c.active}),
+                        })
+                          .then(r=>r.json())
+                          .then((d: DiscountCode)=>{ if(d.id){ setCodes(cs=>cs.map(x=>x.id===c.id?d:x)); flash(c.active?"Disabled":"Enabled"); } })
+                          .catch(()=>flash("Update failed"));
+                      }}
                         style={{ cursor:"pointer", border:`1px solid ${C.border}`, background:C.card,
                           fontSize:12, padding:"6px 10px", borderRadius:4, justifySelf:"start" }}>
-                        {c.live?"Disable":"Enable"}
+                        {c.active?"Disable":"Enable"}
+                      </button>
+                      <button onClick={()=>{
+                        if(!confirm(`Delete ${c.code}?`)) return;
+                        fetch(`/api/admin/discounts/${c.id}`, { method:"DELETE" })
+                          .then(()=>{ setCodes(cs=>cs.filter(x=>x.id!==c.id)); flash("Deleted"); })
+                          .catch(()=>flash("Delete failed"));
+                      }}
+                        style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
+                          color:C.red, fontSize:12, padding:"6px 10px", borderRadius:4 }}>
+                        Delete
                       </button>
                     </div>
                   ))}
