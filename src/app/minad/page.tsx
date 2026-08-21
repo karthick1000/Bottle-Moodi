@@ -202,7 +202,7 @@ export default function AdminPage() {
       .then(r => r.json())
       .then((data: Product[]) => {
         if (Array.isArray(data)) {
-          setProducts(data.map(p => ({ ...p, imageUrl: null })));
+          setProducts(data);
         }
       })
       .catch(() => {});
@@ -250,9 +250,15 @@ export default function AdminPage() {
     fd.append("file", file);
     const res  = await fetch("/api/upload", { method:"POST", body:fd });
     const data = await res.json();
-    const url  = data.url ?? URL.createObjectURL(file);
-    setProducts(ps => ps.map(p => p.id===id ? {...p,imageUrl:url} : p));
-    flash(data.url ? "Uploaded" : "Preview set (configure Cloudinary to persist)");
+    if (!data.url) { flash("Upload failed"); return; }
+    // Update local state
+    setProducts(ps => ps.map(p => p.id===id ? {...p,imageUrl:data.url} : p));
+    // Persist imageUrl to DB
+    fetch(`/api/admin/products/${id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ imageUrl: data.url }),
+    }).then(() => flash("Image saved")).catch(() => flash("Image upload ok, DB save failed"));
   };
 
   const pickTab = (t: Tab) => { setTab(t); setSideOpen(false); };

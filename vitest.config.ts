@@ -9,7 +9,7 @@ export default defineConfig({
     globals: true,
     coverage: {
       provider: 'v8',
-      threshold: { lines: 90, functions: 90, branches: 85 },
+      thresholds: { lines: 90, functions: 90, branches: 85 },
     },
     setupFiles: ['./src/__tests__/setup.ts'],
   },

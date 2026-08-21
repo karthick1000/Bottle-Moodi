@@ -7,6 +7,7 @@ export interface Product {
   base: number;
   sub: string;
   active?: boolean;
+  imageUrl?: string | null;
 }
 
 export const SIZES = ["A4", "A3", "A2"] as const;
