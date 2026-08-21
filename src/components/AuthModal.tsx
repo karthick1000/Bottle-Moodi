@@ -27,13 +27,12 @@ export function AuthModal() {
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signIn, setActive: siSetActive, isLoaded: siLoaded } = useSignIn() as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signUp, setActive: suSetActive, isLoaded: suLoaded } = useSignUp() as any;
-
-  const [googleLoading, setGoogleLoading] = useState(false);
 
   // Sync tab when authMode changes externally
   const activeTab = authOpen ? tab : authMode;
@@ -111,8 +110,12 @@ export function AuthModal() {
   const isLogin = activeTab === "login";
 
   const handleGoogle = async () => {
-    if (!siLoaded || !signIn) return;
+    if (!signIn) {
+      setError("Auth is still loading. Please wait a moment and try again.");
+      return;
+    }
     setGoogleLoading(true);
+    setError("");
     try {
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
@@ -120,7 +123,8 @@ export function AuthModal() {
         redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (err: any) {
-      setError(err.errors?.[0]?.message ?? "Google sign-in failed.");
+      const msg = err.errors?.[0]?.longMessage ?? err.errors?.[0]?.message ?? err.message ?? "Google sign-in failed.";
+      setError(msg);
       setGoogleLoading(false);
     }
   };
