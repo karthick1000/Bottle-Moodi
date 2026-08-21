@@ -43,7 +43,7 @@ function UserNav() {
 
 export function Header() {
   const { isSignedIn } = useAuth();
-  const { items, toggleCart } = useCartStore();
+  const { items, toggleCart, openLogin, openSignup } = useCartStore();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const close = () => setMenuOpen(false);
@@ -79,13 +79,21 @@ export function Header() {
             {/* Auth */}
             {!isSignedIn ? (
               <div className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 500 }}>
-                <Link href="/sign-in" className="text-cream hover:text-[#e8452c] transition-colors">
+                <button
+                  onClick={openLogin}
+                  className="cursor-pointer border-0 bg-transparent text-cream hover:text-[#e8452c] transition-colors"
+                  style={{ fontSize: 13, fontWeight: 500 }}
+                >
                   Login
-                </Link>
+                </button>
                 <span style={{ color: "#5a6a61" }}>/</span>
-                <Link href="/sign-up" style={{ color: "#e8452c" }} className="hover:underline">
+                <button
+                  onClick={openSignup}
+                  className="cursor-pointer border-0 bg-transparent hover:underline"
+                  style={{ color: "#e8452c", fontSize: 13, fontWeight: 500 }}
+                >
                   Sign up
-                </Link>
+                </button>
               </div>
             ) : (
               <UserNav />
@@ -152,13 +160,20 @@ export function Header() {
           <div className="px-6 flex items-center gap-3 pb-2">
             {!isSignedIn ? (
               <>
-                <Link href="/sign-in" onClick={close} className="font-inter text-[15px] font-medium text-cream">
+                <button
+                  onClick={() => { close(); openLogin(); }}
+                  className="font-inter text-[15px] font-medium text-cream cursor-pointer border-0 bg-transparent"
+                >
                   Login
-                </Link>
+                </button>
                 <span style={{ color: "#5a6a61" }}>/</span>
-                <Link href="/sign-up" onClick={close} className="font-inter text-[15px] font-medium" style={{ color: "#e8452c" }}>
+                <button
+                  onClick={() => { close(); openSignup(); }}
+                  className="font-inter text-[15px] font-medium cursor-pointer border-0 bg-transparent"
+                  style={{ color: "#e8452c" }}
+                >
                   Sign up
-                </Link>
+                </button>
               </>
             ) : (
               <MobileSignOut />

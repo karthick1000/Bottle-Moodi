@@ -28,6 +28,11 @@ interface CartStore {
   formattedSubtotal: () => string;
   formattedTotal: () => string;
   formattedShipping: () => string;
+  authOpen: boolean;
+  authMode: "login" | "signup";
+  openLogin: () => void;
+  openSignup: () => void;
+  closeAuth: () => void;
 }
 
 export const useCartStore = create<CartStore>()(
@@ -35,6 +40,8 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       cartOpen: false,
+      authOpen: false,
+      authMode: "login" as "login" | "signup",
 
       addItem: (item) => {
         const amount = item.base + SIZE_UPCHARGE[item.size];
@@ -57,6 +64,10 @@ export const useCartStore = create<CartStore>()(
       formattedSubtotal: () => money(get().subtotal()),
       formattedShipping: () => money(get().shippingCost()),
       formattedTotal: () => money(get().total()),
+
+      openLogin: () => set({ authOpen: true, authMode: "login" }),
+      openSignup: () => set({ authOpen: true, authMode: "signup" }),
+      closeAuth: () => set({ authOpen: false }),
     }),
     { name: "bm-cart", partialize: (s) => ({ items: s.items }) }
   )
