@@ -17,6 +17,7 @@ model Product {
   active     Boolean     @default(true)
   createdAt  DateTime    @default(now())
   orderItems OrderItem[]
+  cartItems  CartItem[]
 }
 
 model Order {
@@ -36,6 +37,24 @@ model OrderItem {
   amount    Int
   order     Order   @relation(fields: [orderId], references: [id])
   product   Product @relation(fields: [productId], references: [id])
+}
+
+model CartItem {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String
+  productId   Int
+  size        String
+  amount      Int
+  createdAt   DateTime @default(now())
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@unique([clerkUserId, productId, size])
+}
+
+model NewsletterSubscriber {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  createdAt DateTime @default(now())
 }
 
 enum OrderStatus {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useUser, UserButton } from "@clerk/nextjs";
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -12,10 +12,14 @@ import { Plus, Upload, Archive, RotateCcw, Menu, X } from "lucide-react";
 
 interface Product {
   id: number; slug: string; title: string; tamil: string;
-  tag: string; price: number; stock: number; live: boolean; imageUrl: string | null;
+  tag: string; base: number; sub: string; active: boolean; imageUrl?: string | null;
+}
+interface DbOrder {
+  id: number; clerkUserId: string; status: string; shipping: number; createdAt: string;
+  items: { id: number; size: string; amount: number; product: { title: string; tamil: string } }[];
 }
 interface Order {
-  id: string; name: string; items: string; total: string; status: string;
+  id: string; name: string; items: string; total: string; status: string; dbId?: number;
 }
 interface DiscountCode {
   code: string; pct: string; uses: string; live: boolean;
@@ -52,26 +56,7 @@ const STATUS_PIE = [
   { name:"New",      value:14, color:"#e8452c" },
 ];
 
-const P0: Product[] = [
-  { id:1,slug:"meter-podu",        title:"Meter Podu",        tamil:"மீட்டர் போடு",         tag:"SIGNBOARD",price:499,stock:42,live:true, imageUrl:null},
-  { id:2,slug:"filter-coffee-only",title:"Filter Coffee Only",tamil:"டிகிரி காபி",          tag:"OORU",     price:599,stock:18,live:true, imageUrl:null},
-  { id:3,slug:"rendu-minute",      title:"Rendu Minute",      tamil:"ரெண்டு நிமிஷம்",       tag:"SLANG",    price:399,stock:65,live:true, imageUrl:null},
-  { id:4,slug:"vetti-time",        title:"Vetti Time",        tamil:"வெட்டி நேரம்",         tag:"SLANG",    price:449,stock:7, live:true, imageUrl:null},
-  { id:5,slug:"bus-stand-blues",   title:"Bus Stand Blues",   tamil:"நிற்கும் இடம்",        tag:"NOSTALGIA",price:699,stock:0, live:false,imageUrl:null},
-  { id:6,slug:"kadalai-podu",      title:"Kadalai Podu",      tamil:"கடலை போடு",            tag:"SLANG",    price:449,stock:31,live:true, imageUrl:null},
-  { id:7,slug:"semma-scene",       title:"Semma Scene",       tamil:"செம்ம சீன்",           tag:"OORU",     price:549,stock:24,live:true, imageUrl:null},
-  { id:8,slug:"sapten-thoongiten", title:"Sapten Thoongiten", tamil:"சாப்டேன் தூங்கிட்டேன்",tag:"NOSTALGIA",price:599,stock:12,live:true, imageUrl:null},
-  { id:9,slug:"ille-ille",         title:"Ille Ille",         tamil:"இல்லை இல்லை",          tag:"SIGNBOARD",price:399,stock:53,live:true, imageUrl:null},
-];
-
-const O0: Order[] = [
-  { id:"BM-4412",name:"Deepa R · Chennai",    items:"Meter Podu A3, Ille Ille A4",     total:"₹1,027",status:"New"},
-  { id:"BM-4411",name:"Arun K · Coimbatore",  items:"Filter Coffee Only A2",            total:"₹1,028",status:"Printing"},
-  { id:"BM-4410",name:"Nithya S · Bengaluru", items:"Vetti Time A3 ×2",                total:"₹1,277",status:"Packed"},
-  { id:"BM-4409",name:"Hari V · Madurai",     items:"Semma Scene A4",                  total:"₹628",  status:"Shipped"},
-  { id:"BM-4408",name:"Priya M · Toronto",    items:"Rendu Minute A2, Kadalai Podu A3",total:"₹1,527",status:"Shipped"},
-  { id:"BM-4407",name:"Sabari T · Trichy",    items:"Sapten Thoongiten A3",            total:"₹828",  status:"Delivered"},
-];
+// P0 and O0 removed — data is now fetched from the DB
 
 const C0: DiscountCode[] = [
   { code:"MOODI10",  pct:"10%", uses:"87 / ∞",   live:true  },
@@ -196,17 +181,48 @@ export default function AdminPage() {
   const [saved,   setSaved]   = useState("");
   const [sideOpen,setSideOpen]= useState(false);
 
-  const [products, setProducts] = useState<Product[]>(P0);
-  const [orders,   setOrders]   = useState<Order[]>(O0);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [orders,   setOrders]   = useState<Order[]>([]);
   const [codes,    setCodes]    = useState<DiscountCode[]>(C0);
   const [newCode,  setNewCode]  = useState("");
   const [newPct,   setNewPct]   = useState("");
   const [tagline,  setTagline]  = useState("Bottle Moodi — Mood-க்கு ஏத்த Design");
   const [headline, setHeadline] = useState("NORMAL IS NOT OUR SIZE");
   const [strip,    setStrip]    = useState("NOW SHOWING · POSTERS · CHENNAI");
-  const [featured, setFeatured] = useState<number[]>([1,2,3,4]);
+  const [featured, setFeatured] = useState<number[]>([]);
 
   const fileRefs = useRef<Record<number, HTMLInputElement|null>>({});
+
+  // Fetch products from DB
+  useEffect(() => {
+    fetch("/api/admin/products")
+      .then(r => r.json())
+      .then((data: Product[]) => {
+        if (Array.isArray(data)) {
+          setProducts(data.map(p => ({ ...p, imageUrl: null })));
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  // Fetch orders from DB
+  useEffect(() => {
+    fetch("/api/admin/orders")
+      .then(r => r.json())
+      .then((data: DbOrder[]) => {
+        if (!Array.isArray(data)) return;
+        const mapped: Order[] = data.map(o => ({
+          id: `BM-${o.id}`,
+          dbId: o.id,
+          name: o.clerkUserId.slice(0, 16) + "…",
+          items: o.items.map(i => `${i.product.title} ${i.size}`).join(", "),
+          total: "₹" + (o.items.reduce((s, i) => s + i.amount, 0) + o.shipping).toLocaleString("en-IN"),
+          status: o.status,
+        }));
+        setOrders(mapped);
+      })
+      .catch(() => {});
+  }, []);
 
   const flash = (msg: string) => {
     setSaved(msg);
@@ -216,9 +232,14 @@ export default function AdminPage() {
   const editProduct = (id: number, key: keyof Product) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
-      const v = (key==="price"||key==="stock") ? (parseInt(raw.replace(/\D/g,""),10)||0) : raw;
+      const v = (key==="base") ? (parseInt(raw.replace(/\D/g,""),10)||0) : raw;
       setProducts(ps => ps.map(p => p.id===id ? {...p,[key]:v} : p));
-      flash("Saved");
+      // Persist change to DB
+      fetch(`/api/admin/products/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [key]: v }),
+      }).then(() => flash("Saved")).catch(() => flash("Save failed"));
     };
 
   const handleUpload = async (id: number, file: File) => {
@@ -430,7 +451,16 @@ export default function AdminPage() {
                 margin:"18px 0 12px", gap:12, flexWrap:"wrap" }}>
                 <div style={{ fontSize:13, color:C.muted }}>{products.length} products · click any field to edit</div>
                 <button
-                  onClick={()=>{ const id=Math.max(...products.map(p=>p.id))+1; setProducts(ps=>[{id,slug:`draft-${id}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",price:499,stock:0,live:false,imageUrl:null},...ps]); flash("Draft created"); }}
+                  onClick={()=>{
+                    fetch("/api/admin/products", {
+                      method:"POST",
+                      headers:{"Content-Type":"application/json"},
+                      body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",base:499,sub:"New product description",active:false}),
+                    }).then(r=>r.json()).then((p:Product)=>{
+                      setProducts(ps=>[{...p,imageUrl:null},...ps]);
+                      flash("Draft created");
+                    }).catch(()=>flash("Create failed"));
+                  }}
                   style={{ cursor:"pointer", border:"none", background:C.dark, color:C.card,
                     fontSize:13, fontWeight:600, padding:"9px 14px", borderRadius:4,
                     display:"flex", alignItems:"center", gap:6 }}>
@@ -439,18 +469,18 @@ export default function AdminPage() {
               </div>
 
               <div className="bm-table-wrap">
-                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:680 }}>
-                  <div style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 70px 90px 100px",
+                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:720 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
                     gap:10, padding:"10px 14px", background:C.thead, borderBottom:`1px solid ${C.border}`,
                     fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
                     <span>ART</span><span>TITLE</span><span>TAMIL</span>
-                    <span>PRICE</span><span>STOCK</span><span>STATUS</span><span>ACTION</span>
+                    <span>PRICE</span><span>STATUS</span><span>ACTIONS</span>
                   </div>
                   {products.map(p => (
                     <div key={p.id}
-                      style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 70px 90px 100px",
+                      style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
                         gap:10, padding:"10px 14px", borderBottom:`1px solid ${C.rowBorder}`,
-                        alignItems:"center", fontSize:13.5, opacity: p.live ? 1 : 0.55 }}>
+                        alignItems:"center", fontSize:13.5, opacity: p.active ? 1 : 0.55 }}>
                       <div>
                         <input type="file" accept="image/*" ref={el=>{fileRefs.current[p.id]=el;}} className="hidden"
                           onChange={e=>{const f=e.target.files?.[0]; if(f) handleUpload(p.id,f);}}/>
@@ -463,26 +493,47 @@ export default function AdminPage() {
                             : <Upload size={11} color={C.faint}/>}
                         </button>
                       </div>
-                      {(["title","tamil","price","stock"] as const).map(key => (
+                      {(["title","tamil","base"] as const).map(key => (
                         <input key={key} value={String(p[key])} onChange={editProduct(p.id,key)}
                           style={{ border:"1px solid transparent", borderRadius:3, padding:"6px 7px",
                             fontSize:13, background:"transparent", outline:"none", width:"100%",
                             boxSizing:"border-box",
                             fontFamily: key==="tamil" ? "var(--font-anek)" : "inherit",
-                            fontVariantNumeric: (key==="price"||key==="stock") ? "tabular-nums" : "normal",
-                            color: key==="stock" ? (p.stock===0?C.red:p.stock<10?C.amber:"inherit") : "inherit" }}
+                            fontVariantNumeric: key==="base" ? "tabular-nums" : "normal" }}
                           onFocus={fo} onBlur={fb}/>
                       ))}
                       <span style={{ fontSize:11, fontWeight:600,
-                        color: p.live ? (p.stock>0?C.green:C.amber) : C.faint }}>
-                        {p.live ? (p.stock>0?"Live":"Sold out") : "Archived"}
+                        color: p.active ? C.green : C.faint }}>
+                        {p.active ? "Live" : "Archived"}
                       </span>
-                      <button onClick={()=>{ setProducts(ps=>ps.map(x=>x.id===p.id?{...x,live:!x.live}:x)); flash(p.live?"Archived":"Restored"); }}
-                        style={{ cursor:"pointer", border:`1px solid ${C.border}`, background:C.card,
-                          fontSize:11.5, padding:"5px 9px", borderRadius:4, justifySelf:"start",
-                          display:"flex", alignItems:"center", gap:4 }}>
-                        {p.live ? <><Archive size={10}/> Archive</> : <><RotateCcw size={10}/> Restore</>}
-                      </button>
+                      <div style={{ display:"flex", gap:6 }}>
+                        <button onClick={()=>{
+                          const newActive = !p.active;
+                          fetch(`/api/admin/products/${p.id}`, {
+                            method:"PUT",
+                            headers:{"Content-Type":"application/json"},
+                            body:JSON.stringify({active:newActive}),
+                          }).then(()=>{
+                            setProducts(ps=>ps.map(x=>x.id===p.id?{...x,active:newActive}:x));
+                            flash(newActive?"Restored":"Archived");
+                          }).catch(()=>flash("Update failed"));
+                        }}
+                          style={{ cursor:"pointer", border:`1px solid ${C.border}`, background:C.card,
+                            fontSize:11.5, padding:"5px 9px", borderRadius:4,
+                            display:"flex", alignItems:"center", gap:4 }}>
+                          {p.active ? <><Archive size={10}/> Archive</> : <><RotateCcw size={10}/> Restore</>}
+                        </button>
+                        <button onClick={()=>{
+                          if(!confirm("Delete this product?")) return;
+                          fetch(`/api/admin/products/${p.id}`, { method:"DELETE" })
+                            .then(()=>{ setProducts(ps=>ps.filter(x=>x.id!==p.id)); flash("Deleted"); })
+                            .catch(()=>flash("Delete failed"));
+                        }}
+                          style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
+                            color:C.red, fontSize:11.5, padding:"5px 9px", borderRadius:4 }}>
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -513,10 +564,24 @@ export default function AdminPage() {
                       <span style={{ color:C.muted, fontSize:12.5 }}>{o.items}</span>
                       <span style={{ fontVariantNumeric:"tabular-nums" }}>{o.total}</span>
                       <select value={o.status}
-                        onChange={e=>{ const v=e.target.value; setOrders(os=>os.map((x,j)=>j===i?{...x,status:v}:x)); flash("Order updated"); }}
+                        onChange={e=>{
+                          const v=e.target.value;
+                          const dbId = o.dbId;
+                          if (dbId) {
+                            fetch(`/api/admin/orders/${dbId}`, {
+                              method:"PATCH",
+                              headers:{"Content-Type":"application/json"},
+                              body:JSON.stringify({status:v}),
+                            }).then(()=>{ setOrders(os=>os.map((x,j)=>j===i?{...x,status:v}:x)); flash("Order updated"); })
+                            .catch(()=>flash("Update failed"));
+                          } else {
+                            setOrders(os=>os.map((x,j)=>j===i?{...x,status:v}:x));
+                            flash("Order updated");
+                          }
+                        }}
                         style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"6px 8px",
                           fontSize:12.5, background:C.card, outline:"none", cursor:"pointer" }}>
-                        {["New","Printing","Packed","Shipped","Delivered"].map(s=>(
+                        {["PENDING","PAID","SHIPPED","CANCELLED"].map(s=>(
                           <option key={s}>{s}</option>
                         ))}
                       </select>

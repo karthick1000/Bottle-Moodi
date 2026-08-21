@@ -13,6 +13,15 @@ export interface CartItem {
   amount: number;
 }
 
+// Shape returned by GET /api/cart
+export interface DbCartItem {
+  id: number;
+  productId: number;
+  size: string;
+  amount: number;
+  product: { slug: string; title: string; tamil: string };
+}
+
 interface CartStore {
   items: CartItem[];
   cartOpen: boolean;
@@ -22,6 +31,7 @@ interface CartStore {
   toggleCart: () => void;
   openCart: () => void;
   closeCart: () => void;
+  syncCartFromDb: (dbItems: DbCartItem[]) => void;
   subtotal: () => number;
   total: () => number;
   shippingCost: () => number;
@@ -56,6 +66,18 @@ export const useCartStore = create<CartStore>()(
       toggleCart: () => set((s) => ({ cartOpen: !s.cartOpen })),
       openCart: () => set({ cartOpen: true }),
       closeCart: () => set({ cartOpen: false }),
+
+      syncCartFromDb: (dbItems) => {
+        const synced: CartItem[] = dbItems.map((d) => ({
+          productId: d.productId,
+          title: d.product.title,
+          tamil: d.product.tamil,
+          size: d.size as Size,
+          base: d.amount, // DB stores final amount; base is approximated
+          amount: d.amount,
+        }));
+        set({ items: synced });
+      },
 
       subtotal: () => get().items.reduce((s, c) => s + c.amount, 0),
       shippingCost: () => (get().items.length > 0 ? SHIPPING : 0),

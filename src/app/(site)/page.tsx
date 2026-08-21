@@ -4,22 +4,62 @@ import { useState } from "react";
 import Link from "next/link";
 import { AnimatedCap } from "@/components/AnimatedCap";
 import { ProductCard } from "@/components/ProductCard";
-import { PRODUCTS } from "@/lib/data";
+import { TAGS_STATIC } from "@/lib/data";
+import type { Product } from "@/lib/data";
 
-const featured = PRODUCTS.slice(0, 4);
+// Static featured products displayed on the homepage.
+// These are fetched client-side on mount to avoid blocking SSR for the hero.
+const FEATURED_SLUGS = [
+  "meter-podu",
+  "filter-coffee-only",
+  "rendu-minute",
+  "vetti-time",
+];
 
 export default function HomePage() {
   const [email, setEmail] = useState("");
   const [subMsg, setSubMsg] = useState("");
+  const [featured, setFeatured] = useState<Product[]>([]);
 
-  const subscribe = () => {
-    if (email.includes("@")) {
-      setSubMsg("Sari. You're on the list.");
-      setEmail("");
-    } else {
+  // Fetch featured products on mount
+  useState(() => {
+    fetch("/api/products")
+      .then((r) => r.json())
+      .then((products: Product[]) => {
+        const slugSet = new Set(FEATURED_SLUGS);
+        setFeatured(
+          products.filter((p: Product) => slugSet.has(p.slug)).slice(0, 4)
+        );
+      })
+      .catch(() => {});
+  });
+
+  const subscribe = async () => {
+    if (!email.includes("@")) {
       setSubMsg("That email looks suspicious.");
+      return;
+    }
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      if (res.ok) {
+        setSubMsg("You're on the list.");
+        setEmail("");
+      } else if (res.status === 409) {
+        setSubMsg("Already subscribed.");
+      } else {
+        setSubMsg("Something went wrong.");
+      }
+    } catch {
+      setSubMsg("Something went wrong.");
     }
   };
+
+  // suppress unused import warning for TAGS_STATIC
+  void TAGS_STATIC;
 
   return (
     <main>
