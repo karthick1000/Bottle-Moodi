@@ -34,9 +34,8 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         ← BACK TO KADAI
       </Link>
 
-      {/* Stack on mobile, side-by-side on md+ */}
       <div className="grid grid-cols-1 md:grid-cols-2 mt-5 md:mt-6 items-start gap-6 md:gap-[64px]">
-        {/* poster preview */}
+        {/* Poster preview */}
         <div
           className="hatch-light border border-[#d9cfb8] flex items-center justify-center text-center px-8 md:px-11 py-10 md:py-14"
           style={{ aspectRatio: "3/4" }}
@@ -49,7 +48,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           </span>
         </div>
 
-        {/* details */}
+        {/* Details */}
         <div className="pt-1">
           <span className="font-bakbak text-[11px] md:text-[12px] tracking-[.24em] text-[#e8452c]">
             {product.tag}

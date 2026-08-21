@@ -2,11 +2,48 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useCartStore } from "@/lib/store";
 
+function UserNav() {
+  const { user } = useUser();
+  const { signOut } = useClerk();
+
+  const email = user?.primaryEmailAddress?.emailAddress ?? "";
+  const firstName = user?.firstName ?? "";
+  const displayName = firstName || email.split("@")[0];
+  const initial = displayName.charAt(0).toUpperCase();
+
+  return (
+    <div className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 500 }}>
+      <span
+        className="font-bakbak flex-none flex items-center justify-center"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: "50%",
+          background: "#e8452c",
+          color: "#f4ecdc",
+          fontSize: 12,
+        }}
+      >
+        {initial}
+      </span>
+      <span className="hidden lg:inline text-cream">{displayName}</span>
+      <button
+        onClick={() => signOut()}
+        className="cursor-pointer border-0 bg-transparent transition-colors"
+        style={{ color: "#6e6455", fontSize: 12 }}
+      >
+        Logout
+      </button>
+    </div>
+  );
+}
+
 export function Header() {
-  const { items, toggleCart } = useCartStore();
+  const { isSignedIn } = useAuth();
+  const { items, toggleCart, openLogin, openSignup } = useCartStore();
   const [menuOpen, setMenuOpen] = useState(false);
 
   const close = () => setMenuOpen(false);
@@ -25,41 +62,62 @@ export function Header() {
             />
           </Link>
 
-          <div className="flex items-center gap-3">
-            {/* Auth — signed out: sign in link; signed in: user avatar */}
-            <SignedOut>
-              <SignInButton mode="redirect">
-                <button className="hidden md:block cursor-pointer border-0 bg-transparent text-[#c4b79c] hover:text-[#e8452c] text-[13px] font-medium transition-colors">
-                  Sign in
-                </button>
-              </SignInButton>
-            </SignedOut>
-            <SignedIn>
-              <UserButton
-                appearance={{
-                  elements: {
-                    avatarBox: "w-8 h-8 rounded-sm",
-                    userButtonPopoverCard: "rounded-sm shadow-lg",
-                  },
-                  variables: {
-                    colorPrimary: "#e8452c",
-                    borderRadius: "2px",
-                  },
-                }}
-              />
-            </SignedIn>
+          {/* Desktop right side: nav + auth + cart */}
+          <div className="hidden md:flex items-center gap-5 lg:gap-6">
+            <nav className="flex items-center gap-5 lg:gap-6">
+              <Link href="/shop" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
+                Kadai / Shop
+              </Link>
+              <Link href="/#story" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
+                Story
+              </Link>
+              <Link href="/#soon" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
+                Coming soon
+              </Link>
+            </nav>
 
-            {/* Cart button — always visible */}
+            {/* Auth */}
+            {!isSignedIn ? (
+              <div className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 500 }}>
+                <button
+                  onClick={openLogin}
+                  className="cursor-pointer border-0 bg-transparent text-cream hover:text-[#e8452c] transition-colors"
+                  style={{ fontSize: 13, fontWeight: 500 }}
+                >
+                  Login
+                </button>
+                <span style={{ color: "#5a6a61" }}>/</span>
+                <button
+                  onClick={openSignup}
+                  className="cursor-pointer border-0 bg-transparent hover:underline"
+                  style={{ color: "#e8452c", fontSize: 13, fontWeight: 500 }}
+                >
+                  Sign up
+                </button>
+              </div>
+            ) : (
+              <UserNav />
+            )}
+
+            {/* Cart */}
             <button
               onClick={toggleCart}
-              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] md:text-[12.5px] font-semibold px-3 md:px-[15px] py-2 md:py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px]"
+              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] md:text-[12.5px] font-semibold px-3 md:px-[15px] py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px]"
             >
               BAG ({items.length})
             </button>
+          </div>
 
-            {/* Hamburger — mobile only */}
+          {/* Mobile: cart + hamburger */}
+          <div className="md:hidden flex items-center gap-3">
             <button
-              className="md:hidden flex flex-col justify-center items-center gap-[5px] w-10 h-10 cursor-pointer border-none bg-transparent"
+              onClick={toggleCart}
+              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] font-semibold px-3 py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px]"
+            >
+              BAG ({items.length})
+            </button>
+            <button
+              className="flex flex-col justify-center items-center gap-[5px] w-10 h-10 cursor-pointer border-none bg-transparent"
               onClick={() => setMenuOpen((o) => !o)}
               aria-label="Toggle menu"
             >
@@ -76,19 +134,6 @@ export function Header() {
                 style={menuOpen ? { transform: "rotate(-45deg) translate(4.5px,-4.5px)" } : {}}
               />
             </button>
-
-            {/* Desktop nav */}
-            <nav className="hidden md:flex items-center gap-6">
-              <Link href="/shop" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium">
-                Kadai / Shop
-              </Link>
-              <Link href="/#story" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium">
-                Story
-              </Link>
-              <Link href="/#soon" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium">
-                Coming soon
-              </Link>
-            </nav>
           </div>
         </div>
       </header>
@@ -112,11 +157,45 @@ export function Header() {
               </Link>
             ))}
           </nav>
+          <div className="px-6 flex items-center gap-3 pb-2">
+            {!isSignedIn ? (
+              <>
+                <button
+                  onClick={() => { close(); openLogin(); }}
+                  className="font-inter text-[15px] font-medium text-cream cursor-pointer border-0 bg-transparent"
+                >
+                  Login
+                </button>
+                <span style={{ color: "#5a6a61" }}>/</span>
+                <button
+                  onClick={() => { close(); openSignup(); }}
+                  className="font-inter text-[15px] font-medium cursor-pointer border-0 bg-transparent"
+                  style={{ color: "#e8452c" }}
+                >
+                  Sign up
+                </button>
+              </>
+            ) : (
+              <MobileSignOut />
+            )}
+          </div>
           <div className="px-6 mt-auto pb-10 font-anek text-[15px] text-[#e8452c]">
             Mood-க்கு ஏத்த Design
           </div>
         </div>
       )}
     </>
+  );
+}
+
+function MobileSignOut() {
+  const { signOut } = useClerk();
+  return (
+    <button
+      onClick={() => signOut()}
+      className="font-inter text-[15px] font-medium text-cream cursor-pointer border-0 bg-transparent"
+    >
+      Sign out
+    </button>
   );
 }
