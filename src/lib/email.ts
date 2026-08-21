@@ -148,7 +148,7 @@ export async function sendOrderConfirmationEmail(
   const total    = subtotal + order.shipping - discount;
 
   await resend.emails.send({
-    from:    "Bottle Moodi <orders@bottlemoodi.com>",
+    from:    "Bottle Moodi <orders@updates.bottlemoodi.com>",
     to:      toEmail,
     subject: `Order #BM-${order.id} confirmed — ${money(total)} · Your wall is about to get louder`,
     html:    buildHtml(order, toName),
