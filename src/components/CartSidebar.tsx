@@ -1,14 +1,59 @@
 "use client";
 
+import { useState } from "react";
 import { useCartStore } from "@/lib/store";
-import { money } from "@/lib/data";
+import { money, SHIPPING } from "@/lib/data";
 import { useRouter } from "next/navigation";
 
 export function CartSidebar() {
-  const { items, cartOpen, toggleCart, closeCart, removeItem, formattedSubtotal } = useCartStore();
+  const { items, cartOpen, toggleCart, closeCart, removeItem, formattedSubtotal, subtotal } = useCartStore();
   const router = useRouter();
 
+  const [discountCode,    setDiscountCode]    = useState("");
+  const [discountAmount,  setDiscountAmount]  = useState(0);
+  const [discountMsg,     setDiscountMsg]     = useState<{ text: string; ok: boolean } | null>(null);
+  const [discountLoading, setDiscountLoading] = useState(false);
+
   if (!cartOpen) return null;
+
+  const sub = subtotal();
+  const shipping = items.length > 0 ? SHIPPING : 0;
+  const total = sub + shipping - discountAmount;
+
+  const applyDiscount = async () => {
+    const code = discountCode.trim();
+    if (!code) return;
+    setDiscountLoading(true);
+    setDiscountMsg(null);
+    try {
+      const res = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, orderTotal: sub }),
+      });
+      const data = await res.json();
+      if (data.valid) {
+        setDiscountAmount(data.discountAmount);
+        setDiscountMsg({ text: "✓ Code applied", ok: true });
+      } else {
+        setDiscountAmount(0);
+        setDiscountMsg({ text: data.message ?? "Invalid code", ok: false });
+      }
+    } catch {
+      setDiscountMsg({ text: "Could not validate code", ok: false });
+    } finally {
+      setDiscountLoading(false);
+    }
+  };
+
+  const handleCheckout = () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("bm-discount-code",   discountCode);
+      sessionStorage.setItem("bm-discount-amount",  String(discountAmount));
+    }
+    closeCart();
+    router.push("/checkout");
+  };
 
   return (
     <div className="fixed inset-0 flex justify-end" style={{ zIndex: 60 }}>
@@ -60,15 +105,62 @@ export function CartSidebar() {
 
         {/* footer */}
         <div className="border-t-[1.5px] border-dark px-5 md:px-6 py-4">
+          {/* Subtotal */}
           <div className="flex justify-between font-mono text-[12.5px] md:text-[13px]">
             <span>SUBTOTAL</span>
             <span>{formattedSubtotal()}</span>
           </div>
+
+          {/* Discount row */}
+          {discountAmount > 0 && (
+            <div className="flex justify-between font-mono text-[12px] mt-1" style={{ color: "#e8452c" }}>
+              <span>DISCOUNT</span>
+              <span>−{money(discountAmount)}</span>
+            </div>
+          )}
+
+          {/* Discount code input */}
+          <div className="flex gap-2 mt-3">
+            <input
+              value={discountCode}
+              onChange={e => {
+                setDiscountCode(e.target.value.toUpperCase());
+                if (discountAmount > 0) { setDiscountAmount(0); setDiscountMsg(null); }
+              }}
+              placeholder="Discount code"
+              className="flex-1 min-w-0 border border-[#d9cfb8] rounded-sm px-3 py-2 font-mono text-[12px] bg-transparent outline-none focus:border-[#e8452c] transition-colors"
+              style={{ textTransform: "uppercase" }}
+              onKeyDown={e => e.key === "Enter" && applyDiscount()}
+            />
+            <button
+              onClick={applyDiscount}
+              disabled={discountLoading || !discountCode.trim()}
+              className="border border-dark bg-transparent font-bakbak text-[12px] px-3 py-2 rounded-sm cursor-pointer hover:bg-dark hover:text-cream transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {discountLoading ? "…" : "APPLY"}
+            </button>
+          </div>
+
+          {/* Discount message */}
+          {discountMsg && (
+            <div
+              className="font-mono text-[11px] mt-1.5"
+              style={{ color: discountMsg.ok ? "#2f7d55" : "#e8452c" }}
+            >
+              {discountMsg.text}
+            </div>
+          )}
+
+          {/* Total */}
+          {(discountAmount > 0) && (
+            <div className="flex justify-between font-mono text-[13px] md:text-[14px] font-semibold mt-2 pt-2 border-t border-[#d9cfb8]">
+              <span>TOTAL</span>
+              <span>{money(total)}</span>
+            </div>
+          )}
+
           <button
-            onClick={() => {
-              closeCart();
-              router.push("/checkout");
-            }}
+            onClick={handleCheckout}
             className="w-full mt-3 border-none bg-dark text-cream font-bakbak text-[14px] md:text-[15px] py-4 rounded-sm tracking-[.04em] hover:bg-[#e8452c] transition-colors cursor-pointer min-h-[52px]"
           >
             CHECKOUT

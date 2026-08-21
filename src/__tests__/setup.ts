@@ -14,9 +14,12 @@ vi.mock('@/lib/prisma', () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      groupBy: vi.fn(),
     },
     orderItem: {
       createMany: vi.fn(),
+      findMany: vi.fn(),
+      groupBy: vi.fn(),
     },
     cartItem: {
       findMany: vi.fn(),
@@ -27,6 +30,13 @@ vi.mock('@/lib/prisma', () => ({
       findUnique: vi.fn(),
       create: vi.fn(),
       findMany: vi.fn(),
+    },
+    discountCode: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
     },
   },
 }));

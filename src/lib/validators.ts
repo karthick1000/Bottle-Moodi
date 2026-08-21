@@ -16,6 +16,8 @@ export const createOrderSchema = z.object({
       })
     )
     .min(1),
+  discountCode: z.string().optional(),
+  discountAmount: z.number().int().nonnegative().optional(),
 });
 
 export const newsletterSchema = z.object({
@@ -45,3 +47,20 @@ export const updateProductSchema = z.object({
   sub: z.string().min(1).optional(),
   active: z.boolean().optional(),
 });
+
+export const validateDiscountSchema = z.object({
+  code: z.string().min(1),
+  orderTotal: z.number().min(0),
+});
+
+export const createDiscountCodeSchema = z.object({
+  code: z.string().min(2).max(20).toUpperCase(),
+  type: z.enum(["PERCENT", "FLAT"]),
+  value: z.number().int().positive(),
+  minOrder: z.number().int().nonnegative().optional(),
+  maxUses: z.number().int().positive().optional(),
+  active: z.boolean().optional(),
+  expiresAt: z.string().datetime().optional().nullable(),
+});
+
+export const updateDiscountCodeSchema = createDiscountCodeSchema.partial();

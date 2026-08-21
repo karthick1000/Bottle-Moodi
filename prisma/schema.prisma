@@ -21,12 +21,32 @@ model Product {
 }
 
 model Order {
-  id          Int         @id @default(autoincrement())
-  clerkUserId String
-  status      OrderStatus @default(PENDING)
-  shipping    Int         @default(79)
-  createdAt   DateTime    @default(now())
-  items       OrderItem[]
+  id             Int         @id @default(autoincrement())
+  clerkUserId    String
+  status         OrderStatus @default(PENDING)
+  shipping       Int         @default(79)
+  discountCode   String?
+  discountAmount Int         @default(0)
+  createdAt      DateTime    @default(now())
+  items          OrderItem[]
+}
+
+model DiscountCode {
+  id         Int          @id @default(autoincrement())
+  code       String       @unique
+  type       DiscountType
+  value      Int
+  minOrder   Int?
+  maxUses    Int?
+  usedCount  Int          @default(0)
+  active     Boolean      @default(true)
+  expiresAt  DateTime?
+  createdAt  DateTime     @default(now())
+}
+
+enum DiscountType {
+  PERCENT
+  FLAT
 }
 
 model OrderItem {
