@@ -52,7 +52,9 @@ export async function POST(req: NextRequest) {
     }
 
     // Send confirmation email (non-blocking — don't fail the order if email fails)
-    sendOrderConfirmationEmail(order, userId).catch(() => {});
+    sendOrderConfirmationEmail(order, userId).catch((err) => {
+      console.error("[email] order confirmation failed:", err?.message ?? err);
+    });
 
     return jsonOk(order);
   } catch (res) {
