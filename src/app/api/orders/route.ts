@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
 import { getUserOrders, createOrder } from "@/lib/db/orders";
+import { createAddress } from "@/lib/db/addresses";
 import { clearUserCart } from "@/lib/db/cart";
 import { createOrderSchema } from "@/lib/validators";
 import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
@@ -35,7 +35,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    const order = await createOrder(userId, body.items, undefined, body.discountCode, resolvedDiscountAmount);
+    const address = await createAddress({
+      clerkUserId: userId,
+      name:    body.address.name,
+      phone:   body.address.phone,
+      line1:   body.address.line1,
+      city:    body.address.city,
+      pincode: body.address.pincode,
+    });
+
+    const order = await createOrder(userId, body.items, undefined, body.discountCode, resolvedDiscountAmount, address.id);
     await clearUserCart(userId);
 
     if (body.discountCode && discountId != null) {

@@ -20,6 +20,18 @@ model Product {
   cartItems  CartItem[]
 }
 
+model Address {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String
+  name        String
+  phone       String
+  line1       String
+  city        String
+  pincode     String
+  createdAt   DateTime @default(now())
+  orders      Order[]
+}
+
 model Order {
   id             Int         @id @default(autoincrement())
   clerkUserId    String
@@ -27,8 +39,10 @@ model Order {
   shipping       Int         @default(79)
   discountCode   String?
   discountAmount Int         @default(0)
+  addressId      Int?
   createdAt      DateTime    @default(now())
   items          OrderItem[]
+  address        Address?    @relation(fields: [addressId], references: [id])
 }
 
 model DiscountCode {

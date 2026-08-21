@@ -17,12 +17,21 @@ interface OrderItem {
   product: OrderProduct;
 }
 
+interface DeliveryAddress {
+  name: string;
+  phone: string;
+  line1: string;
+  city: string;
+  pincode: string;
+}
+
 interface Order {
   id: number;
   status: "PENDING" | "PAID" | "SHIPPED" | "CANCELLED";
   shipping: number;
   createdAt: string;
   items: OrderItem[];
+  address: DeliveryAddress | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -176,6 +185,13 @@ export default function MyOrdersPage() {
                     </div>
                   ))}
                 </div>
+                {order.address && (
+                  <div className="border-t border-[#d9cfb8] pt-3 mb-3 font-mono text-[11px] text-[#6e6455] leading-relaxed">
+                    <div className="font-semibold tracking-[.1em] mb-1">DELIVER TO</div>
+                    <div>{order.address.name} · {order.address.phone}</div>
+                    <div>{order.address.line1}, {order.address.city} – {order.address.pincode}</div>
+                  </div>
+                )}
                 <div className="border-t border-[#d9cfb8] pt-3 flex justify-between font-mono text-[12.5px]">
                   <span className="text-[#6e6455]">
                     TOTAL (incl. shipping ₹{order.shipping ?? SHIPPING})
