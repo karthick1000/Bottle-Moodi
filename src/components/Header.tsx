@@ -74,6 +74,11 @@ export function Header() {
               <Link href="/#soon" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
                 Coming soon
               </Link>
+              {isSignedIn && (
+                <Link href="/my-orders" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
+                  My Orders
+                </Link>
+              )}
             </nav>
 
             {/* Auth */}
@@ -146,6 +151,7 @@ export function Header() {
               { href: "/shop", label: "Kadai / Shop" },
               { href: "/#story", label: "Story" },
               { href: "/#soon", label: "Coming soon" },
+              ...(isSignedIn ? [{ href: "/my-orders", label: "My Orders" }] : []),
             ].map(({ href, label }) => (
               <Link
                 key={href}
