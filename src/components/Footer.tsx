@@ -17,8 +17,17 @@ export function Footer() {
           <Link href="/#soon" className="text-[#8d8371] hover:text-cream">Coming soon</Link>
         </div>
         <div className="grid gap-[9px] text-[13.5px]">
-          <a href="#" className="text-[#8d8371] hover:text-cream">Instagram</a>
-          <a href="#" className="text-[#8d8371] hover:text-cream">Shipping &amp; returns</a>
+          <a
+            href="https://www.instagram.com/bottle_moodi?igsi=eTc1MXljOW9hanhy"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[#8d8371] hover:text-cream"
+          >
+            Instagram
+          </a>
+          <Link href="/my-orders" className="text-[#8d8371] hover:text-cream">
+            Shipping &amp; returns
+          </Link>
         </div>
       </div>
       <div className="max-w-[1400px] mx-auto mt-8 md:mt-10 font-mono text-[10.5px] tracking-[.1em] text-[#544b3e]">

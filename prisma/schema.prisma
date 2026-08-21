@@ -1,0 +1,65 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Product {
+  id         Int         @id @default(autoincrement())
+  slug       String      @unique
+  title      String
+  tamil      String
+  tag        String
+  base       Int
+  sub        String
+  active     Boolean     @default(true)
+  createdAt  DateTime    @default(now())
+  orderItems OrderItem[]
+  cartItems  CartItem[]
+}
+
+model Order {
+  id          Int         @id @default(autoincrement())
+  clerkUserId String
+  status      OrderStatus @default(PENDING)
+  shipping    Int         @default(79)
+  createdAt   DateTime    @default(now())
+  items       OrderItem[]
+}
+
+model OrderItem {
+  id        Int     @id @default(autoincrement())
+  orderId   Int
+  productId Int
+  size      String
+  amount    Int
+  order     Order   @relation(fields: [orderId], references: [id])
+  product   Product @relation(fields: [productId], references: [id])
+}
+
+model CartItem {
+  id          Int      @id @default(autoincrement())
+  clerkUserId String
+  productId   Int
+  size        String
+  amount      Int
+  createdAt   DateTime @default(now())
+  product     Product  @relation(fields: [productId], references: [id])
+
+  @@unique([clerkUserId, productId, size])
+}
+
+model NewsletterSubscriber {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  createdAt DateTime @default(now())
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  SHIPPED
+  CANCELLED
+}
