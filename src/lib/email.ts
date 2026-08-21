@@ -69,7 +69,7 @@ function buildHtml(
 
   <!-- Body -->
   <tr><td style="background:#ffffff;padding:28px 28px 24px;">
-    <p style="margin:0 0 4px;font-size:24px;font-weight:700;color:#1a1713;">Sari da! 🎉</p>
+    <p style="margin:0 0 4px;font-size:24px;font-weight:700;color:#1a1713;">வாழ்த்துக்கள் வாழ்த்துக்கள்</p>
     <p style="margin:0 0 22px;font-size:15px;color:#453d33;line-height:1.65;">
       Hey ${toName}, your order is confirmed. We'll dispatch it in
       <strong>3 working days</strong> and send tracking by SMS.
