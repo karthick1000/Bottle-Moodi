@@ -1,6 +1,11 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
+import { PrismaPg } from "@prisma/adapter-pg";
 
-const prisma = new PrismaClient();
+const adapter = new PrismaPg({
+  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL!,
+});
+const prisma = new PrismaClient({ adapter } as any);
 
 const products = [
   { slug: "meter-podu",         title: "Meter Podu",           tamil: "மீட்டர் போடு",          tag: "SIGNBOARD", base: 499, sub: "For the auto ride you already lost." },
@@ -17,7 +22,7 @@ const products = [
 async function main() {
   console.log("Seeding products…");
   for (const p of products) {
-    await prisma.product.upsert({
+    await (prisma as any).product.upsert({
       where: { slug: p.slug },
       update: p,
       create: p,
