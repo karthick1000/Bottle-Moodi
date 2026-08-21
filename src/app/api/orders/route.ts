@@ -1,9 +1,11 @@
 import { NextRequest } from "next/server";
+import { clerkClient } from "@clerk/nextjs/server";
 import { getUserOrders, createOrder } from "@/lib/db/orders";
 import { clearUserCart } from "@/lib/db/cart";
 import { createOrderSchema } from "@/lib/validators";
 import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
 import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
+import { sendOrderConfirmationEmail } from "@/lib/email";
 
 export async function GET(req: NextRequest) {
   try {
@@ -19,13 +21,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const userId = await getAuthUserId(req);
-    const body = await parseBody(req, createOrderSchema);
+    const body   = await parseBody(req, createOrderSchema);
 
     // Validate discount if provided
     let resolvedDiscountAmount = body.discountAmount ?? 0;
     let discountId: number | undefined;
     if (body.discountCode) {
-      const subtotal = body.items.reduce((s, i) => s + i.amount, 0);
+      const subtotal   = body.items.reduce((s, i) => s + i.amount, 0);
       const validation = await validateDiscountCode(body.discountCode, subtotal);
       if (validation.valid) {
         resolvedDiscountAmount = validation.discountAmount;
@@ -39,6 +41,9 @@ export async function POST(req: NextRequest) {
     if (body.discountCode && discountId != null) {
       await incrementUsedCount(discountId);
     }
+
+    // Send confirmation email (non-blocking — don't fail the order if email fails)
+    sendOrderConfirmationEmail(order, userId).catch(() => {});
 
     return jsonOk(order);
   } catch (res) {
