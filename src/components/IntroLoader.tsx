@@ -42,7 +42,7 @@ export function IntroLoader() {
             style={{ inset: 3, background: "#1a1713" }}
           >
             <div
-              style={{ width: "100%", background: "#e8452c", animation: "bm-fill 2.3s ease-in-out forwards" }}
+              style={{ width: "100%", height: "0%", background: "#e8452c", animation: "bm-fill 2.3s ease-in-out forwards" }}
             />
           </div>
         </div>
