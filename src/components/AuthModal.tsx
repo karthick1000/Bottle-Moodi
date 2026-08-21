@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useSignIn, useSignUp } from "@clerk/nextjs";
+import { useSignIn, useSignUp, useClerk } from "@clerk/nextjs";
 import { useCartStore } from "@/lib/store";
 
 type Tab = "login" | "signup";
@@ -33,6 +33,7 @@ export function AuthModal() {
   const { signIn, setActive: siSetActive, isLoaded: siLoaded } = useSignIn() as any;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { signUp, setActive: suSetActive, isLoaded: suLoaded } = useSignUp() as any;
+  const clerk = useClerk();
 
   // Sync tab when authMode changes externally
   const activeTab = authOpen ? tab : authMode;
@@ -110,14 +111,14 @@ export function AuthModal() {
   const isLogin = activeTab === "login";
 
   const handleGoogle = async () => {
-    if (!signIn) {
+    if (!clerk.client) {
       setError("Auth is still loading. Please wait a moment and try again.");
       return;
     }
     setGoogleLoading(true);
     setError("");
     try {
-      await signIn.authenticateWithRedirect({
+      await clerk.client.signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: `${window.location.origin}/sso-callback`,
         redirectUrlComplete: `${window.location.origin}/`,
