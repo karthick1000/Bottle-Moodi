@@ -154,10 +154,15 @@ export async function sendOrderConfirmationEmail(
   const resend = getResend();
   if (!resend) return; // RESEND_API_KEY not configured — skip silently
 
-  await resend.emails.send({
+  const { data, error } = await resend.emails.send({
     from:    "Bottle Moodi <orders@updates.bottlemoodi.com>",
     to:      toEmail,
     subject: `Order #BM-${order.id} confirmed — ${money(total)} · Your wall is about to get louder`,
     html:    buildHtml(order, toName),
   });
+  if (error) {
+    console.error("[resend] send failed:", JSON.stringify(error));
+    throw new Error(error.message);
+  }
+  console.log("[resend] sent email id:", data?.id, "to:", toEmail);
 }
