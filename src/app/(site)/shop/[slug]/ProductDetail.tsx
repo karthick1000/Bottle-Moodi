@@ -64,9 +64,9 @@ export function ProductDetail({ product }: Props) {
           className="border border-[#d9cfb8] relative overflow-hidden"
           style={{ aspectRatio: "3/4" }}
         >
-          {product.imageUrl ? (
+          {product.images?.[0]?.url ? (
             <Image
-              src={product.imageUrl}
+              src={product.images[0].url}
               alt={product.title}
               fill
               priority

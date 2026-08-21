@@ -7,18 +7,27 @@ datasource db {
 }
 
 model Product {
-  id         Int         @id @default(autoincrement())
-  slug       String      @unique
+  id         Int            @id @default(autoincrement())
+  slug       String         @unique
   title      String
   tamil      String
   tag        String
   base       Int
   sub        String
-  active     Boolean     @default(true)
-  imageUrl   String?
-  createdAt  DateTime    @default(now())
+  active     Boolean        @default(true)
+  createdAt  DateTime       @default(now())
   orderItems OrderItem[]
   cartItems  CartItem[]
+  images     ProductImage[]
+}
+
+model ProductImage {
+  id        Int      @id @default(autoincrement())
+  productId Int
+  url       String
+  position  Int      @default(0)
+  createdAt DateTime @default(now())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 }
 
 model Address {

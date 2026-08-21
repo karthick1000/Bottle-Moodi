@@ -45,7 +45,6 @@ export const createProductSchema = z.object({
   base: z.number().int().positive(),
   sub: z.string().min(1),
   active: z.boolean().optional(),
-  imageUrl: z.string().url().optional(),
 });
 
 export const updateProductSchema = z.object({
@@ -56,7 +55,6 @@ export const updateProductSchema = z.object({
   base: z.number().int().positive().optional(),
   sub: z.string().min(1).optional(),
   active: z.boolean().optional(),
-  imageUrl: z.string().url().nullable().optional(),
 });
 
 export const validateDiscountSchema = z.object({

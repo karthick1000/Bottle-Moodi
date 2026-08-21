@@ -10,7 +10,7 @@ const PRODUCT_SELECT = {
   base: true,
   sub: true,
   active: true,
-  imageUrl: true,
+  images: { orderBy: { position: "asc" as const } },
 } as const;
 
 async function _getAllProducts(activeOnly = true) {
@@ -42,7 +42,6 @@ export async function createProduct(data: {
   base: number;
   sub: string;
   active?: boolean;
-  imageUrl?: string;
 }) {
   return prisma.product.create({ data, select: PRODUCT_SELECT });
 }
@@ -57,7 +56,6 @@ export async function updateProduct(
     base: number;
     sub: string;
     active: boolean;
-    imageUrl: string | null;
   }>
 ) {
   return prisma.product.update({ where: { id }, data, select: PRODUCT_SELECT });

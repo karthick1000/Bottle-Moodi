@@ -1,3 +1,9 @@
+export interface ProductImage {
+  id: number;
+  url: string;
+  position: number;
+}
+
 export interface Product {
   id: number;
   slug: string;
@@ -7,7 +13,7 @@ export interface Product {
   base: number;
   sub: string;
   active?: boolean;
-  imageUrl?: string | null;
+  images?: ProductImage[];
 }
 
 export const SIZES = ["A4", "A3", "A2"] as const;

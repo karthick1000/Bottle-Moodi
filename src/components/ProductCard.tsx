@@ -9,13 +9,14 @@ interface ProductCardProps {
 }
 
 export function ProductCard({ product, dark = false }: ProductCardProps) {
+  const primaryImage = product.images?.[0]?.url ?? null;
   return (
     <div>
       <Link href={`/shop/${product.slug}`} className="block group">
         <div
           className="aspect-[3/4] flex items-center justify-center text-center border relative overflow-hidden transition-colors"
           style={{
-            background: product.imageUrl
+            background: primaryImage
               ? undefined
               : dark
               ? "repeating-linear-gradient(38deg,#2b251d 0 8px,#211c15 8px 16px)"
@@ -23,9 +24,9 @@ export function ProductCard({ product, dark = false }: ProductCardProps) {
             borderColor: dark ? "#3a332a" : "#d9cfb8",
           }}
         >
-          {product.imageUrl ? (
+          {primaryImage ? (
             <Image
-              src={product.imageUrl}
+              src={primaryImage}
               alt={product.title}
               fill
               sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"

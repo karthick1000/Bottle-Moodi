@@ -1,3 +1,4 @@
+/// <reference types="vitest/globals" />
 import { vi } from 'vitest';
 
 // Mock the prisma singleton so no real DB calls happen
