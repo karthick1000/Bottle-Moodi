@@ -1,8 +1,14 @@
 "use client";
 
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 
-export default function OrderConfirmedPage() {
+function OrderConfirmedContent() {
+  const params  = useSearchParams();
+  const orderId = params.get("id");
+  const ref     = orderId ? `#BM-${orderId}` : "";
+
   return (
     <main className="max-w-[640px] mx-auto px-4 md:px-7 py-16 md:py-[110px] pb-20 md:pb-[140px] text-center">
       <div className="font-kaushan text-[26px] md:text-[30px] text-[#e8452c]">Sari da!</div>
@@ -60,16 +66,36 @@ export default function OrderConfirmedPage() {
       </div>
 
       <p className="mt-6 text-[15px] md:text-[16.5px] leading-[1.6] text-[#453d33]">
-        Order #BM-4412 confirmed. Dispatch in 3 working days, tracking by SMS. Your wall is about
-        to get louder.
+        {ref ? (
+          <>Order <span className="font-mono font-semibold">{ref}</span> confirmed.</>
+        ) : (
+          <>Order confirmed.</>
+        )}{" "}
+        Dispatch in 3 working days, tracking by SMS. Your wall is about to get louder.
       </p>
 
-      <Link
-        href="/shop"
-        className="inline-block mt-7 border-[1.5px] border-dark bg-transparent font-bakbak text-[14px] md:text-[15px] px-6 md:px-7 py-3.5 rounded-sm hover:bg-dark hover:text-cream transition-colors min-h-[48px] flex items-center"
-      >
-        BACK TO KADAI
-      </Link>
+      <div className="flex flex-col sm:flex-row gap-3 justify-center mt-7">
+        <Link
+          href="/my-orders"
+          className="inline-flex items-center justify-center border-[1.5px] border-[#e8452c] bg-[#e8452c] text-cream font-bakbak text-[14px] md:text-[15px] px-6 md:px-7 py-3.5 rounded-sm hover:bg-dark hover:border-dark transition-colors min-h-[48px]"
+        >
+          VIEW MY ORDERS
+        </Link>
+        <Link
+          href="/shop"
+          className="inline-flex items-center justify-center border-[1.5px] border-dark bg-transparent font-bakbak text-[14px] md:text-[15px] px-6 md:px-7 py-3.5 rounded-sm hover:bg-dark hover:text-cream transition-colors min-h-[48px]"
+        >
+          BACK TO KADAI
+        </Link>
+      </div>
     </main>
+  );
+}
+
+export default function OrderConfirmedPage() {
+  return (
+    <Suspense>
+      <OrderConfirmedContent />
+    </Suspense>
   );
 }
