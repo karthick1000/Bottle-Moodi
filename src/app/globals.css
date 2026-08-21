@@ -1,0 +1,74 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-bakbak: "Bakbak One";
+  --font-kaushan: "Kaushan Script";
+  --font-inter: "Inter Tight";
+  --font-anek: "Anek Tamil";
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background: #f4ecdc;
+  color: #1a1713;
+  -webkit-font-smoothing: antialiased;
+}
+
+a {
+  color: #1a1713;
+  text-decoration: none;
+}
+
+a:hover {
+  color: #e8452c;
+}
+
+/* Bottle shape clip-path utility */
+.bottle-clip {
+  clip-path: polygon(36% 0, 64% 0, 64% 17%, 86% 30%, 100% 50%, 100% 94%, 94% 100%, 6% 100%, 0 94%, 0 50%, 14% 30%, 36% 17%);
+}
+
+/* Hatching pattern */
+.hatch-light {
+  background: repeating-linear-gradient(38deg, #eae1cb 0 8px, #f4ecdc 8px 16px);
+}
+
+.hatch-dark {
+  background: repeating-linear-gradient(38deg, #2b251d 0 8px, #211c15 8px 16px);
+}
+
+/* Cap radial gradient */
+.cap-gradient {
+  background: repeating-conic-gradient(from 0deg, #e8452c 0 4.2deg, #a82d19 4.2deg 8.4deg);
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: #f4ecdc;
+}
+::-webkit-scrollbar-thumb {
+  background: #d9cfb8;
+}
+
+/* Hide scrollbar utility (for horizontal filter scroll on mobile) */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Ensure images / wide containers don't overflow */
+img, video, iframe {
+  max-width: 100%;
+}
