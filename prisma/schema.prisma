@@ -16,9 +16,12 @@ model Product {
   sub        String
   active     Boolean        @default(true)
   createdAt  DateTime       @default(now())
+  updatedAt  DateTime       @updatedAt
   orderItems OrderItem[]
   cartItems  CartItem[]
   images     ProductImage[]
+
+  @@index([active])
 }
 
 model ProductImage {
@@ -28,6 +31,8 @@ model ProductImage {
   position  Int      @default(0)
   createdAt DateTime @default(now())
   product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
 }
 
 model Address {
@@ -40,17 +45,19 @@ model Address {
   pincode     String
   createdAt   DateTime @default(now())
   orders      Order[]
+
+  @@index([clerkUserId])
 }
 
 model Payment {
-  id                 Int      @id @default(autoincrement())
-  razorpayOrderId    String   @unique
-  razorpayPaymentId  String   @unique
-  razorpaySignature  String
-  amountPaise        Int
-  currency           String   @default("INR")
-  createdAt          DateTime @default(now())
-  order              Order?
+  id                Int      @id @default(autoincrement())
+  razorpayOrderId   String   @unique
+  razorpayPaymentId String   @unique
+  razorpaySignature String
+  amountPaise       Int
+  currency          String   @default("INR")
+  createdAt         DateTime @default(now())
+  order             Order?
 }
 
 model Order {
@@ -60,30 +67,18 @@ model Order {
   shipping       Int         @default(79)
   discountCode   String?
   discountAmount Int         @default(0)
-  addressId      Int?
+  notes          String?
+  addressId      Int
   paymentId      Int?        @unique
   createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
   items          OrderItem[]
-  address        Address?    @relation(fields: [addressId], references: [id])
+  address        Address     @relation(fields: [addressId], references: [id])
   payment        Payment?    @relation(fields: [paymentId], references: [id])
-}
 
-model DiscountCode {
-  id         Int          @id @default(autoincrement())
-  code       String       @unique
-  type       DiscountType
-  value      Int
-  minOrder   Int?
-  maxUses    Int?
-  usedCount  Int          @default(0)
-  active     Boolean      @default(true)
-  expiresAt  DateTime?
-  createdAt  DateTime     @default(now())
-}
-
-enum DiscountType {
-  PERCENT
-  FLAT
+  @@index([clerkUserId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 model OrderItem {
@@ -92,8 +87,12 @@ model OrderItem {
   productId Int
   size      String
   amount    Int
-  order     Order   @relation(fields: [orderId], references: [id])
+  unitPrice Int
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
   product   Product @relation(fields: [productId], references: [id])
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model CartItem {
@@ -103,15 +102,35 @@ model CartItem {
   size        String
   amount      Int
   createdAt   DateTime @default(now())
-  product     Product  @relation(fields: [productId], references: [id])
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@unique([clerkUserId, productId, size])
 }
 
 model NewsletterSubscriber {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  createdAt DateTime @default(now())
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  createdAt      DateTime  @default(now())
+  unsubscribedAt DateTime?
+}
+
+model DiscountCode {
+  id        Int          @id @default(autoincrement())
+  code      String       @unique
+  type      DiscountType
+  value     Int
+  minOrder  Int?
+  maxUses   Int?
+  usedCount Int          @default(0)
+  active    Boolean      @default(true)
+  expiresAt DateTime?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+enum DiscountType {
+  PERCENT
+  FLAT
 }
 
 enum OrderStatus {
