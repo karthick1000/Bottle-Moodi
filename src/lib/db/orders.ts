@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
 
+export type { OrderStatus };
+
 export async function getUserOrders(clerkUserId: string) {
   return prisma.order.findMany({
     where: { clerkUserId },
@@ -44,7 +46,8 @@ export async function createOrder(
   shipping = 79,
   discountCode?: string,
   discountAmount = 0,
-  addressId?: number
+  addressId?: number,
+  status?: OrderStatus,
 ) {
   return prisma.order.create({
     data: {
@@ -53,6 +56,7 @@ export async function createOrder(
       discountCode: discountCode ?? null,
       discountAmount,
       ...(addressId != null ? { addressId } : {}),
+      ...(status ? { status } : {}),
       items: { create: items },
     },
     include: {
