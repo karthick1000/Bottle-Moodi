@@ -215,14 +215,14 @@ export function AuthModal() {
           <>
             <button
               onClick={handleGoogle}
-              disabled={googleLoading}
+              disabled={googleLoading || !siLoaded}
               style={{
                 width: "100%", display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
                 background: "white", border: `1.5px solid ${C.border}`, borderRadius: 2,
-                padding: "11px 14px", cursor: googleLoading ? "not-allowed" : "pointer",
+                padding: "11px 14px", cursor: (googleLoading || !siLoaded) ? "not-allowed" : "pointer",
                 fontFamily: "var(--font-inter), system-ui, sans-serif",
                 fontSize: 14, fontWeight: 600, color: "#1a1713",
-                opacity: googleLoading ? 0.7 : 1, marginBottom: 14,
+                opacity: (googleLoading || !siLoaded) ? 0.7 : 1, marginBottom: 14,
               }}
             >
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -231,7 +231,7 @@ export function AuthModal() {
                 <path d="M3.964 10.71A5.41 5.41 0 0 1 3.682 9c0-.593.102-1.17.282-1.71V4.958H.957A8.996 8.996 0 0 0 0 9c0 1.452.348 2.827.957 4.042l3.007-2.332z" fill="#FBBC05"/>
                 <path d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0A8.997 8.997 0 0 0 .957 4.958L3.964 7.29C4.672 5.163 6.656 3.58 9 3.58z" fill="#EA4335"/>
               </svg>
-              {googleLoading ? "Redirecting…" : "Continue with Google"}
+              {googleLoading ? "Redirecting…" : !siLoaded ? "Loading…" : "Continue with Google"}
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
               <span style={{ flex: 1, height: 1, background: C.border }} />
