@@ -11,6 +11,7 @@ export default function HomePage() {
   const [subMsg, setSubMsg] = useState("");
   const [featured, setFeatured] = useState<Product[]>([]);
   const [featuredLoaded, setFeaturedLoaded] = useState(false);
+  const [studioPhotoOk, setStudioPhotoOk] = useState(true);
 
   // Fetch the 4 most recently added active products on mount
   useState(() => {
@@ -158,9 +159,12 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* studio photo placeholder — hidden on mobile to save space */}
+        {/* Studio photo — hidden on mobile to save space.
+            Drop a file at public/studio-photo.jpg and it replaces the
+            placeholder automatically; if the file is absent the img errors
+            out, hides itself, and the hatched placeholder shows through. */}
         <div
-          className="hidden lg:flex border border-[#d9cfb8] hatch-light items-center justify-center text-center p-6"
+          className="hidden lg:flex relative border border-[#d9cfb8] hatch-light items-center justify-center text-center p-6 overflow-hidden"
           style={{ aspectRatio: "4/5" }}
         >
           <span className="font-mono text-[11px] tracking-[.1em] text-[#6e6455] leading-[1.8]">
@@ -170,6 +174,15 @@ export default function HomePage() {
             <br />
             drop image here
           </span>
+          {studioPhotoOk && (
+            /* eslint-disable-next-line @next/next/no-img-element */
+            <img
+              src="/studio-photo.jpg"
+              alt="Bottlemoodi posters on a studio wall"
+              onError={() => setStudioPhotoOk(false)}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+          )}
         </div>
       </section>
 
