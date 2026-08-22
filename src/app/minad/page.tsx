@@ -155,7 +155,8 @@ export default function AdminPage() {
   const [saved,   setSaved]   = useState("");
   const [sideOpen,setSideOpen]= useState(false);
 
-  const [products,    setProducts]    = useState<Product[]>([]);
+  const [products,      setProducts]      = useState<Product[]>([]);
+  const [productsError, setProductsError] = useState("");
   const [orders,      setOrders]      = useState<Order[]>([]);
   const [codes,       setCodes]       = useState<DiscountCode[]>([]);
   const [newCode,     setNewCode]     = useState("");
@@ -172,6 +173,8 @@ export default function AdminPage() {
   const [featured, setFeatured] = useState<number[]>([]);
 
   const fileRefs = useRef<Record<number, HTMLInputElement|null>>({});
+  // Pending debounce timers, keyed by `${productId}:${field}`.
+  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
 
   // Fetch dashboard stats from DB
   useEffect(() => {
@@ -197,16 +200,30 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
-  // Fetch products from DB
+  // Fetch products from DB. Never swallow the failure — an empty table that
+  // actually means "request rejected" reads as data loss to the operator.
   useEffect(() => {
-    fetch("/api/admin/products")
-      .then(r => r.json())
-      .then((data: Product[]) => {
+    fetch("/api/admin/products", { cache: "no-store" })
+      .then(async r => {
+        const data = await r.json().catch(() => null);
+        if (!r.ok) {
+          setProductsError(
+            r.status === 403
+              ? "Forbidden — this Clerk account is not the configured admin (check ADMIN_CLERK_USER_ID)."
+              : r.status === 401
+              ? "Not signed in."
+              : `Could not load products (HTTP ${r.status}).`
+          );
+          return;
+        }
         if (Array.isArray(data)) {
           setProducts(data);
+          setProductsError("");
+        } else {
+          setProductsError("Unexpected response from the products API.");
         }
       })
-      .catch(() => {});
+      .catch(() => setProductsError("Network error while loading products."));
   }, []);
 
   // Fetch orders from DB
@@ -238,12 +255,20 @@ export default function AdminPage() {
       const raw = e.target.value;
       const v = (key==="base") ? (parseInt(raw.replace(/\D/g,""),10)||0) : raw;
       setProducts(ps => ps.map(p => p.id===id ? {...p,[key]:v} : p));
-      // Persist change to DB
-      fetch(`/api/admin/products/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ [key]: v }),
-      }).then(() => flash("Saved")).catch(() => flash("Save failed"));
+
+      // Debounce the write. Firing a PUT per keystroke lets responses land out
+      // of order, so a half-typed value can overwrite the finished one.
+      const timerKey = `${id}:${String(key)}`;
+      clearTimeout(saveTimers.current[timerKey]);
+      saveTimers.current[timerKey] = setTimeout(() => {
+        fetch(`/api/admin/products/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ [key]: v }),
+        })
+          .then(r => flash(r.ok ? "Saved" : `Save failed (${r.status})`))
+          .catch(() => flash("Save failed"));
+      }, 600);
     };
 
   const handleUpload = async (id: number, file: File) => {
@@ -464,6 +489,13 @@ export default function AdminPage() {
 
             {/* ══ PRODUCTS ══ */}
             {tab==="products" && <>
+              {productsError && (
+                <div style={{ marginTop:18, padding:"11px 14px", borderRadius:4,
+                  border:`1px solid ${C.red}`, background:"#fdeeeb",
+                  color:C.red, fontSize:13 }}>
+                  {productsError}
+                </div>
+              )}
               <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center",
                 margin:"18px 0 12px", gap:12, flexWrap:"wrap" }}>
                 <div style={{ fontSize:13, color:C.muted }}>{products.length} products · click any field to edit</div>
@@ -473,7 +505,9 @@ export default function AdminPage() {
                       method:"POST",
                       headers:{"Content-Type":"application/json"},
                       body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",base:499,sub:"New product description",active:false}),
-                    }).then(r=>r.json()).then((p:Product)=>{
+                    }).then(async r=>{
+                      const p = await r.json().catch(()=>null);
+                      if (!r.ok || !p?.id) { flash(`Create failed (${r.status})`); return; }
                       setProducts(ps=>[{...p,imageUrl:null},...ps]);
                       flash("Draft created");
                     }).catch(()=>flash("Create failed"));

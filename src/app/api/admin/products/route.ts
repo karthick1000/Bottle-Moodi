@@ -1,12 +1,15 @@
 import { NextRequest } from "next/server";
-import { getAllProducts, createProduct } from "@/lib/db/products";
+import { getAllProductsUncached, createProduct } from "@/lib/db/products";
 import { createProductSchema } from "@/lib/validators";
 import { getAdminUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
+
+// Admin data must never be served from a cached render.
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
     await getAdminUserId(req);
-    const products = await getAllProducts(false);
+    const products = await getAllProductsUncached(false);
     return jsonOk(products);
   } catch (res) {
     if (res instanceof Response) return res;
