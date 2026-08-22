@@ -42,21 +42,21 @@ export async function getAllOrders() {
 
 export async function createOrder(
   clerkUserId: string,
-  items: { productId: number; size: string; amount: number }[],
+  items: { productId: number; size: string; amount: number; unitPrice: number }[],
+  addressId: number,
   shipping = 79,
   discountCode?: string,
   discountAmount = 0,
-  addressId?: number,
   status?: OrderStatus,
   paymentId?: number,
 ) {
   return prisma.order.create({
     data: {
       clerkUserId,
+      addressId,
       shipping,
       discountCode: discountCode ?? null,
       discountAmount,
-      ...(addressId != null ? { addressId } : {}),
       ...(status ? { status } : {}),
       ...(paymentId != null ? { paymentId } : {}),
       items: { create: items },

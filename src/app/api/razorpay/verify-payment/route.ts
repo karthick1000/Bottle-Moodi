@@ -7,7 +7,7 @@ import { clearUserCart } from "@/lib/db/cart";
 import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { deliveryAddressSchema } from "@/lib/validators";
-import { SHIPPING } from "@/lib/data";
+import { SHIPPING, SIZE_UPCHARGE, type Size } from "@/lib/data";
 
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
@@ -40,7 +40,28 @@ export async function POST(req: NextRequest) {
     const userId = await getAuthUserId(req);
     const body   = await parseBody(req, verifyPaymentSchema);
 
-    // ── 1. HMAC-SHA256 signature verification ─────────────────────────────
+    // ── 1. Fetch current prices from DB — never trust client-sent prices ──
+    const productIds = [...new Set(body.items.map((i) => i.productId))];
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds }, active: true },
+      select: { id: true, base: true },
+    });
+    if (products.length !== productIds.length) {
+      return jsonErr("One or more products are unavailable", 400);
+    }
+    const priceMap = new Map(products.map((p) => [p.id, p.base]));
+
+    const itemsWithPrice = body.items.map((i) => ({
+      productId: i.productId,
+      size:      i.size,
+      amount:    i.amount,
+      unitPrice: (priceMap.get(i.productId) ?? 0) + (SIZE_UPCHARGE[i.size as Size] ?? 0),
+    }));
+
+    // Subtotal from real prices × quantities
+    const subtotal = itemsWithPrice.reduce((s, i) => s + i.unitPrice * i.amount, 0);
+
+    // ── 2. HMAC-SHA256 signature verification ─────────────────────────────
     // This is the only proof of a genuine Razorpay payment.
     // The signature is: HMAC_SHA256(razorpayOrderId + "|" + razorpayPaymentId, KEY_SECRET)
     const expectedSig = crypto
@@ -58,11 +79,10 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 2. Re-validate discount server-side ────────────────────────────────
+    // ── 3. Re-validate discount server-side ────────────────────────────────
     let resolvedDiscountAmount = body.discountAmount ?? 0;
     let discountId: number | undefined;
     if (body.discountCode) {
-      const subtotal   = body.items.reduce((s, i) => s + i.amount, 0);
       const validation = await validateDiscountCode(body.discountCode, subtotal);
       if (validation.valid) {
         resolvedDiscountAmount = validation.discountAmount;
@@ -72,7 +92,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── 3. Atomically create Payment + Address + Order ─────────────────────
+    // ── 4. Atomically create Payment + Address + Order ─────────────────────
     // If any step fails, all three roll back — no orphaned Payment record.
     const order = await prisma.$transaction(async (tx) => {
       const payment = await tx.payment.create({
@@ -105,7 +125,7 @@ export async function POST(req: NextRequest) {
           discountAmount: resolvedDiscountAmount,
           addressId:      address.id,
           paymentId:      payment.id,
-          items: { create: body.items },
+          items: { create: itemsWithPrice },
         },
         include: {
           items: {
@@ -117,7 +137,7 @@ export async function POST(req: NextRequest) {
       });
     });
 
-    // ── 4. Post-transaction side effects (non-fatal) ───────────────────────
+    // ── 5. Post-transaction side effects (non-fatal) ───────────────────────
     await clearUserCart(userId);
 
     if (body.discountCode && discountId != null) {
