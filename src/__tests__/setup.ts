@@ -45,6 +45,7 @@ vi.mock('@/lib/prisma', () => ({
 // Mock next/cache
 vi.mock('next/cache', () => ({
   unstable_cache: (fn: unknown) => fn,
+  revalidateTag: vi.fn(),
 }));
 
 // Mock @clerk/nextjs/server
