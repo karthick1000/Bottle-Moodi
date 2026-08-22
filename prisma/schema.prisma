@@ -42,6 +42,17 @@ model Address {
   orders      Order[]
 }
 
+model Payment {
+  id                 Int      @id @default(autoincrement())
+  razorpayOrderId    String   @unique
+  razorpayPaymentId  String   @unique
+  razorpaySignature  String
+  amountPaise        Int
+  currency           String   @default("INR")
+  createdAt          DateTime @default(now())
+  order              Order?
+}
+
 model Order {
   id             Int         @id @default(autoincrement())
   clerkUserId    String
@@ -50,9 +61,11 @@ model Order {
   discountCode   String?
   discountAmount Int         @default(0)
   addressId      Int?
+  paymentId      Int?        @unique
   createdAt      DateTime    @default(now())
   items          OrderItem[]
   address        Address?    @relation(fields: [addressId], references: [id])
+  payment        Payment?    @relation(fields: [paymentId], references: [id])
 }
 
 model DiscountCode {
