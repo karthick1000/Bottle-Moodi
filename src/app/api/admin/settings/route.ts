@@ -6,11 +6,15 @@ import { getAdminUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
 // Admin data must never be served from a cached render.
 export const dynamic = "force-dynamic";
 
+const imageUrl = z.string().url().or(z.literal("")).optional();
+
 const settingsSchema = z.object({
   tagline:        z.string().max(200).optional(),
   headline:       z.string().max(200).optional(),
   strip:          z.string().max(200).optional(),
-  studioPhotoUrl: z.string().url().or(z.literal("")).optional(),
+  studioPhotoUrl: imageUrl,
+  teeMockupUrl:   imageUrl,
+  toteMockupUrl:  imageUrl,
 });
 
 export async function GET(req: NextRequest) {
