@@ -4,32 +4,22 @@ import { useState } from "react";
 import Link from "next/link";
 import { AnimatedCap } from "@/components/AnimatedCap";
 import { ProductCard } from "@/components/ProductCard";
-import { TAGS_STATIC } from "@/lib/data";
 import type { Product } from "@/lib/data";
-
-// Static featured products displayed on the homepage.
-// These are fetched client-side on mount to avoid blocking SSR for the hero.
-const FEATURED_SLUGS = [
-  "meter-podu",
-  "filter-coffee-only",
-  "rendu-minute",
-  "vetti-time",
-];
 
 export default function HomePage() {
   const [email, setEmail] = useState("");
   const [subMsg, setSubMsg] = useState("");
   const [featured, setFeatured] = useState<Product[]>([]);
 
-  // Fetch featured products on mount
+  // Fetch the 4 most recently added active products on mount
   useState(() => {
     fetch("/api/products")
       .then((r) => r.json())
       .then((products: Product[]) => {
-        const slugSet = new Set(FEATURED_SLUGS);
-        setFeatured(
-          products.filter((p: Product) => slugSet.has(p.slug)).slice(0, 4)
-        );
+        if (Array.isArray(products)) {
+          // API returns oldest-first; slice the last 4 and reverse for newest-first
+          setFeatured(products.slice(-4).reverse());
+        }
       })
       .catch(() => {});
   });
@@ -57,9 +47,6 @@ export default function HomePage() {
       setSubMsg("Something went wrong.");
     }
   };
-
-  // suppress unused import warning for TAGS_STATIC
-  void TAGS_STATIC;
 
   return (
     <main>
