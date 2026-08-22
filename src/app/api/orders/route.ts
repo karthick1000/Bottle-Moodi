@@ -1,16 +1,43 @@
 import { NextRequest } from "next/server";
-import { getUserOrders, createOrder } from "@/lib/db/orders";
+import { getUserOrders, getUserOrdersByAnyId, createOrder } from "@/lib/db/orders";
 import { createAddress } from "@/lib/db/addresses";
 import { clearUserCart } from "@/lib/db/cart";
 import { createOrderSchema } from "@/lib/validators";
 import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
 import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
+import { clerkClient } from "@clerk/nextjs/server";
 
 export async function GET(req: NextRequest) {
   try {
     const userId = await getAuthUserId(req);
-    const orders = await getUserOrders(userId);
+    let orders = await getUserOrders(userId);
+
+    console.log(`[orders GET] userId=${userId} found=${orders.length}`);
+
+    // Fallback: if no orders found under current userId, look up by email.
+    // This handles the case where a user has multiple Clerk accounts (e.g. OAuth
+    // vs email/password) with the same email address — both point to the same
+    // real person so we surface all their orders.
+    if (orders.length === 0) {
+      try {
+        const client = await clerkClient();
+        const user = await client.users.getUser(userId);
+        const email = user.emailAddresses[0]?.emailAddress;
+        if (email) {
+          const { data: matches } = await client.users.getUserList({ emailAddress: [email] });
+          const allIds = matches.map((u) => u.id);
+          if (allIds.length > 1 || (allIds.length === 1 && allIds[0] !== userId)) {
+            orders = await getUserOrdersByAnyId(allIds);
+            console.log(`[orders GET] email fallback email=${email} ids=${allIds} found=${orders.length}`);
+          }
+        }
+      } catch (e) {
+        // Non-fatal — return what we have
+        console.error("[orders GET] email fallback failed:", e);
+      }
+    }
+
     return jsonOk(orders);
   } catch (res) {
     if (res instanceof Response) return res;

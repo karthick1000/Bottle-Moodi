@@ -73,6 +73,7 @@ export default function MyOrdersPage() {
   const { isSignedIn, isLoaded } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -81,11 +82,20 @@ export default function MyOrdersPage() {
       return;
     }
     fetch("/api/orders")
-      .then((r) => r.json())
+      .then(async (r) => {
+        if (!r.ok) {
+          const body = await r.json().catch(() => ({}));
+          throw new Error(body?.error ?? `HTTP ${r.status}`);
+        }
+        return r.json();
+      })
       .then((data: Order[]) => {
         setOrders(Array.isArray(data) ? data : []);
       })
-      .catch(() => setOrders([]))
+      .catch((err: Error) => {
+        console.error("[my-orders]", err.message);
+        setFetchError(err.message ?? "Failed to load orders");
+      })
       .finally(() => setLoading(false));
   }, [isLoaded, isSignedIn]);
 
@@ -134,7 +144,14 @@ export default function MyOrdersPage() {
         </span>
       </div>
 
-      {orders.length === 0 ? (
+      {fetchError ? (
+        <div className="text-center py-16">
+          <p className="font-mono text-[13px] text-[#e8452c] mb-2">
+            Could not load your orders.
+          </p>
+          <p className="font-mono text-[11px] text-[#6e6455]">{fetchError}</p>
+        </div>
+      ) : orders.length === 0 ? (
         <div className="text-center py-16">
           <p className="font-mono text-[13px] text-[#6e6455] mb-6">
             No orders yet. Start shopping →
