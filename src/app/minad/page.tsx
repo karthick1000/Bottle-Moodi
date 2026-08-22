@@ -171,6 +171,8 @@ export default function AdminPage() {
   const [headline, setHeadline] = useState("NORMAL IS NOT OUR SIZE");
   const [strip,    setStrip]    = useState("NOW SHOWING · POSTERS · CHENNAI");
   const [featured, setFeatured] = useState<number[]>([]);
+  const [studioPhotoUrl, setStudioPhotoUrl] = useState("");
+  const [studioUploading, setStudioUploading] = useState(false);
 
   const fileRefs = useRef<Record<number, HTMLInputElement|null>>({});
   // Pending debounce timers, keyed by `${productId}:${field}`.
@@ -245,9 +247,69 @@ export default function AdminPage() {
       .catch(() => {});
   }, []);
 
+  // Fetch editable homepage content from DB
+  useEffect(() => {
+    fetch("/api/admin/settings", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((s) => {
+        if (!s) return;
+        if (typeof s.tagline  === "string") setTagline(s.tagline);
+        if (typeof s.headline === "string") setHeadline(s.headline);
+        if (typeof s.strip    === "string") setStrip(s.strip);
+        if (typeof s.studioPhotoUrl === "string") setStudioPhotoUrl(s.studioPhotoUrl);
+      })
+      .catch(() => {});
+  }, []);
+
   const flash = (msg: string) => {
     setSaved(msg);
     setTimeout(() => setSaved(""), 1800);
+  };
+
+  const saveHomepage = () => {
+    fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tagline, headline, strip, studioPhotoUrl }),
+    })
+      .then(r => flash(r.ok ? "Homepage saved" : `Save failed (${r.status})`))
+      .catch(() => flash("Save failed"));
+  };
+
+  // Studio photo goes to Cloudinary with no productId, then the returned URL
+  // is persisted as a site setting.
+  const uploadStudioPhoto = async (file: File) => {
+    setStudioUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res  = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.url) { flash("Upload failed"); return; }
+
+      setStudioPhotoUrl(data.url);
+      const save = await fetch("/api/admin/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ studioPhotoUrl: data.url }),
+      });
+      flash(save.ok ? "Studio photo saved" : "Uploaded, but saving failed");
+    } catch {
+      flash("Upload failed");
+    } finally {
+      setStudioUploading(false);
+    }
+  };
+
+  const removeStudioPhoto = () => {
+    setStudioPhotoUrl("");
+    fetch("/api/admin/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ studioPhotoUrl: "" }),
+    })
+      .then(r => flash(r.ok ? "Studio photo removed" : "Remove failed"))
+      .catch(() => flash("Remove failed"));
   };
 
   const editProduct = (id: number, key: keyof Product) =>
@@ -783,7 +845,53 @@ export default function AdminPage() {
                       })}
                     </div>
                   </div>
-                  <button onClick={()=>flash("Homepage saved")}
+                  <div>
+                    <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#3b4a42", marginBottom:8 }}>
+                      Studio photo
+                    </label>
+                    <div style={{ display:"flex", gap:14, alignItems:"flex-start", flexWrap:"wrap" }}>
+                      <div style={{ width:104, aspectRatio:"4/5", flexShrink:0, borderRadius:4,
+                        border:`1px solid ${C.border}`, overflow:"hidden", background:C.thead,
+                        display:"flex", alignItems:"center", justifyContent:"center" }}>
+                        {studioPhotoUrl ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img src={studioPhotoUrl} alt="Studio photo"
+                            style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                        ) : (
+                          <span style={{ fontSize:10.5, color:C.faint, textAlign:"center", padding:6 }}>
+                            No photo
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ display:"grid", gap:8 }}>
+                        <label style={{ cursor: studioUploading ? "wait" : "pointer",
+                          border:`1px solid ${C.border}`, background:C.card, borderRadius:4,
+                          fontSize:12.5, padding:"8px 12px", display:"inline-flex",
+                          alignItems:"center", gap:6, opacity: studioUploading ? .6 : 1 }}>
+                          <Upload size={13}/>
+                          {studioUploading ? "Uploading…" : studioPhotoUrl ? "Replace photo" : "Upload photo"}
+                          <input type="file" accept="image/*" hidden disabled={studioUploading}
+                            onChange={e=>{
+                              const f = e.target.files?.[0];
+                              e.target.value = "";
+                              if (f) uploadStudioPhoto(f);
+                            }}/>
+                        </label>
+                        {studioPhotoUrl && (
+                          <button onClick={removeStudioPhoto}
+                            style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
+                              color:C.red, fontSize:12, padding:"7px 12px", borderRadius:4, justifySelf:"start" }}>
+                            Remove
+                          </button>
+                        )}
+                        <span style={{ fontSize:11.5, color:C.faint, maxWidth:230, lineHeight:1.5 }}>
+                          Shown beside the story section on the homepage. Portrait 4:5 works best.
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button onClick={saveHomepage}
                     style={{ cursor:"pointer", justifySelf:"start", border:"none", background:C.dark,
                       color:C.card, fontSize:13.5, fontWeight:600, padding:"10px 18px", borderRadius:4 }}>
                     Save changes

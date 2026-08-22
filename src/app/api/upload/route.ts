@@ -17,13 +17,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const formData  = await req.formData();
-  const file      = formData.get("file") as File | null;
-  const productId = Number(formData.get("productId"));
+  const formData = await req.formData();
+  const file     = formData.get("file") as File | null;
 
-  if (!file)           return NextResponse.json({ error: "No file provided" }, { status: 400 });
-  if (!productId || isNaN(productId))
-    return NextResponse.json({ error: "productId is required" }, { status: 400 });
+  // productId is optional: omit it for standalone imagery (e.g. the homepage
+  // studio photo), which uploads to Cloudinary without a ProductImage row.
+  const rawProductId = formData.get("productId");
+  const hasProduct   = rawProductId != null && rawProductId !== "";
+  const productId    = hasProduct ? Number(rawProductId) : null;
+
+  if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
+  if (hasProduct && (!productId || isNaN(productId)))
+    return NextResponse.json({ error: "productId must be a number" }, { status: 400 });
 
   const bytes  = await file.arrayBuffer();
   const buffer = Buffer.from(bytes);
@@ -45,8 +50,8 @@ export async function POST(req: NextRequest) {
     }
   );
 
-  // Save URL to DB atomically with the upload
-  const image = await addProductImage(productId, result.secure_url);
+  // Save URL to DB atomically with the upload (product images only)
+  const image = productId ? await addProductImage(productId, result.secure_url) : null;
 
   return NextResponse.json({ url: result.secure_url, publicId: result.public_id, image });
 }
