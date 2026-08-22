@@ -92,7 +92,12 @@ export function CartSidebar() {
                     </div>
                   </div>
                   <button
-                    onClick={() => removeItem(i)}
+                    onClick={() => {
+                      if (item.id) {
+                        fetch(`/api/cart/${item.id}`, { method: "DELETE" }).catch(() => {});
+                      }
+                      removeItem(i);
+                    }}
                     className="cursor-pointer border-none bg-transparent font-mono text-[9.5px] md:text-[10px] text-[#6e6455] tracking-[.1em] py-2 px-1 min-h-[40px] hover:text-[#e8452c] transition-colors"
                   >
                     REMOVE
