@@ -12,9 +12,6 @@
     "test:watch": "vitest",
     "postinstall": "prisma generate"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
   "dependencies": {
     "@clerk/nextjs": "^7.8.0",
     "@prisma/adapter-pg": "^7.9.1",

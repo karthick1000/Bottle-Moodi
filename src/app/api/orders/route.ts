@@ -8,6 +8,7 @@ import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
+import { SIZE_UPCHARGE, type Size } from "@/lib/data";
 
 export async function GET(req: NextRequest) {
   try {
@@ -77,11 +78,31 @@ export async function POST(req: NextRequest) {
     const userId = await getAuthUserId(req);
     const body   = await parseBody(req, createOrderSchema);
 
+    // Fetch current prices from DB — never trust client-sent prices
+    const productIds = [...new Set(body.items.map((i) => i.productId))];
+    const products = await prisma.product.findMany({
+      where: { id: { in: productIds }, active: true },
+      select: { id: true, base: true },
+    });
+    if (products.length !== productIds.length) {
+      return jsonErr("One or more products are unavailable", 400);
+    }
+    const priceMap = new Map(products.map((p) => [p.id, p.base]));
+
+    const itemsWithPrice = body.items.map((i) => ({
+      productId: i.productId,
+      size:      i.size,
+      amount:    i.amount,
+      unitPrice: (priceMap.get(i.productId) ?? 0) + (SIZE_UPCHARGE[i.size as Size] ?? 0),
+    }));
+
+    // Compute subtotal from real prices × quantities (not quantities alone)
+    const subtotal = itemsWithPrice.reduce((s, i) => s + i.unitPrice * i.amount, 0);
+
     // Validate discount if provided
-    let resolvedDiscountAmount = body.discountAmount ?? 0;
+    let resolvedDiscountAmount = 0;
     let discountId: number | undefined;
     if (body.discountCode) {
-      const subtotal   = body.items.reduce((s, i) => s + i.amount, 0);
       const validation = await validateDiscountCode(body.discountCode, subtotal);
       if (validation.valid) {
         resolvedDiscountAmount = validation.discountAmount;
@@ -98,7 +119,14 @@ export async function POST(req: NextRequest) {
       pincode: body.address.pincode,
     });
 
-    const order = await createOrder(userId, body.items, undefined, body.discountCode, resolvedDiscountAmount, address.id);
+    const order = await createOrder(
+      userId,
+      itemsWithPrice,
+      address.id,
+      undefined,
+      body.discountCode,
+      resolvedDiscountAmount,
+    );
     await clearUserCart(userId);
 
     if (body.discountCode && discountId != null) {
