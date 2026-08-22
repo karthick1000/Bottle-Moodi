@@ -14,6 +14,19 @@ export async function getUserOrders(clerkUserId: string) {
   });
 }
 
+export async function getUserOrdersByAnyId(clerkUserIds: string[]) {
+  return prisma.order.findMany({
+    where: { clerkUserId: { in: clerkUserIds } },
+    include: {
+      items: {
+        include: { product: { select: { title: true, tamil: true } } },
+      },
+      address: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 export async function getAllOrders() {
   return prisma.order.findMany({
     include: {
