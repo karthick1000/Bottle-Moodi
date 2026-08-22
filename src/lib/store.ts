@@ -5,6 +5,7 @@ import { persist } from "zustand/middleware";
 import { money, SHIPPING, SIZE_UPCHARGE, type Size } from "./data";
 
 export interface CartItem {
+  id?: number; // DB row id — present after sync, absent for guest/local items
   productId: number;
   title: string;
   tamil: string;
@@ -55,7 +56,14 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) => {
         const amount = item.base + SIZE_UPCHARGE[item.size];
-        set((s) => ({ items: [...s.items, { ...item, amount }] }));
+        set((s) => {
+          // Honour the DB's unique constraint: one row per (productId, size)
+          const exists = s.items.some(
+            (x) => x.productId === item.productId && x.size === item.size
+          );
+          if (exists) return s;
+          return { items: [...s.items, { ...item, amount }] };
+        });
       },
 
       removeItem: (index) =>
@@ -69,11 +77,12 @@ export const useCartStore = create<CartStore>()(
 
       syncCartFromDb: (dbItems) => {
         const synced: CartItem[] = dbItems.map((d) => ({
+          id: d.id, // preserve DB row id so DELETE can reference it
           productId: d.productId,
           title: d.product.title,
           tamil: d.product.tamil,
           size: d.size as Size,
-          base: d.amount, // DB stores final amount; base is approximated
+          base: d.amount,
           amount: d.amount,
         }));
         set({ items: synced });

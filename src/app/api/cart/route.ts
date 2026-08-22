@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getUserCart, addOrUpdateCartItem } from "@/lib/db/cart";
+import { getUserCart, addOrUpdateCartItem, clearUserCart } from "@/lib/db/cart";
 import { addCartItemSchema } from "@/lib/validators";
 import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
 
@@ -28,5 +28,16 @@ export async function POST(req: NextRequest) {
   } catch (res) {
     if (res instanceof Response) return res;
     return jsonErr("Failed to add cart item", 500);
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const userId = await getAuthUserId(req);
+    await clearUserCart(userId);
+    return jsonOk({ cleared: true });
+  } catch (res) {
+    if (res instanceof Response) return res;
+    return jsonErr("Failed to clear cart", 500);
   }
 }
