@@ -10,6 +10,7 @@ export default function HomePage() {
   const [email, setEmail] = useState("");
   const [subMsg, setSubMsg] = useState("");
   const [featured, setFeatured] = useState<Product[]>([]);
+  const [featuredLoaded, setFeaturedLoaded] = useState(false);
 
   // Fetch the 4 most recently added active products on mount
   useState(() => {
@@ -17,11 +18,11 @@ export default function HomePage() {
       .then((r) => r.json())
       .then((products: Product[]) => {
         if (Array.isArray(products)) {
-          // API returns oldest-first; slice the last 4 and reverse for newest-first
           setFeatured(products.slice(-4).reverse());
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setFeaturedLoaded(true));
   });
 
   const subscribe = async () => {
@@ -172,36 +173,37 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Latest Four ── */}
-      <section className="bg-dark text-cream py-16 md:py-[92px]">
-        <div className="max-w-[1400px] mx-auto px-4 md:px-7">
-          <div className="flex items-end justify-between gap-4 flex-wrap mb-8 md:mb-11">
-            <div>
-              <span className="font-bakbak text-[11px] md:text-[12px] tracking-[.3em] text-[#e8452c]">
-                REEL 02 — THE WALL
-              </span>
-              <h2
-                className="mt-3 md:mt-4 font-bakbak leading-none"
-                style={{ fontSize: "clamp(28px,4.2vw,56px)" }}
+      {/* ── Latest Four — hidden until loaded and only when products exist ── */}
+      {featuredLoaded && featured.length > 0 && (
+        <section className="bg-dark text-cream py-16 md:py-[92px]">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-7">
+            <div className="flex items-end justify-between gap-4 flex-wrap mb-8 md:mb-11">
+              <div>
+                <span className="font-bakbak text-[11px] md:text-[12px] tracking-[.3em] text-[#e8452c]">
+                  REEL 02 — THE WALL
+                </span>
+                <h2
+                  className="mt-3 md:mt-4 font-bakbak leading-none"
+                  style={{ fontSize: "clamp(28px,4.2vw,56px)" }}
+                >
+                  Latest {featured.length === 1 ? "one" : featured.length < 4 ? "picks" : "four"}
+                </h2>
+              </div>
+              <Link
+                href="/shop"
+                className="text-[#e8452c] font-bakbak text-[12px] md:text-[13px] tracking-[.16em] hover:underline"
               >
-                Latest four
-              </h2>
+                ALL PRINTS →
+              </Link>
             </div>
-            <Link
-              href="/shop"
-              className="text-[#e8452c] font-bakbak text-[12px] md:text-[13px] tracking-[.16em] hover:underline"
-            >
-              ALL PRINTS →
-            </Link>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-[22px]">
+              {featured.map((p) => (
+                <ProductCard key={p.id} product={p} dark />
+              ))}
+            </div>
           </div>
-          {/* 2-col on mobile, 4-col on large screens */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-[22px]">
-            {featured.map((p) => (
-              <ProductCard key={p.id} product={p} dark />
-            ))}
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Coming Soon ── */}
       <section
