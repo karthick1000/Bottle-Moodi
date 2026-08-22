@@ -109,20 +109,21 @@ export function AuthModal() {
   const isLogin = activeTab === "login";
 
   const handleGoogle = async () => {
-    if (!siLoaded || !signIn) {
+    if (!siLoaded) {
       setError("Auth is still loading. Please wait a moment and try again.");
       return;
     }
     setGoogleLoading(true);
     setError("");
     try {
+      if (!signIn) throw new Error("Sign-in unavailable. Please refresh the page.");
       await signIn.authenticateWithRedirect({
         strategy: "oauth_google",
         redirectUrl: `${window.location.origin}/sso-callback`,
         redirectUrlComplete: `${window.location.origin}/`,
       });
     } catch (err: any) {
-      const msg = err.errors?.[0]?.longMessage ?? err.errors?.[0]?.message ?? err.message ?? "Google sign-in failed.";
+      const msg = err?.errors?.[0]?.longMessage ?? err?.errors?.[0]?.message ?? err?.message ?? "Google sign-in failed. Please try again.";
       setError(msg);
       setGoogleLoading(false);
     }
