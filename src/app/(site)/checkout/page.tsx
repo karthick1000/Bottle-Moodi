@@ -244,9 +244,10 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          razorpayOrderId:  paymentResult.razorpay_order_id,
+          razorpayOrderId:   paymentResult.razorpay_order_id,
           razorpayPaymentId: paymentResult.razorpay_payment_id,
           razorpaySignature: paymentResult.razorpay_signature,
+          amountPaise:       rzpAmount,
           items: items.map((i) => ({
             productId: i.productId,
             size:      i.size,

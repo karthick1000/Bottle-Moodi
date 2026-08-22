@@ -48,6 +48,7 @@ export async function createOrder(
   discountAmount = 0,
   addressId?: number,
   status?: OrderStatus,
+  paymentId?: number,
 ) {
   return prisma.order.create({
     data: {
@@ -57,6 +58,7 @@ export async function createOrder(
       discountAmount,
       ...(addressId != null ? { addressId } : {}),
       ...(status ? { status } : {}),
+      ...(paymentId != null ? { paymentId } : {}),
       items: { create: items },
     },
     include: {
