@@ -312,7 +312,7 @@ export default function CheckoutPage() {
       {/* ── Toast ─────────────────────────────────────────────────────────── */}
       {toast && (
         <div
-          className="fixed top-4 left-1/2 -translate-x-1/2 z-[100] max-w-[420px] w-[calc(100%-2rem)] px-4 py-3 rounded-sm font-mono text-[12px] tracking-[.02em] shadow-lg flex items-center gap-3"
+          className="fixed top-[68px] md:top-[74px] left-1/2 -translate-x-1/2 z-[100] max-w-[420px] w-[calc(100%-2rem)] px-4 py-3 rounded-sm font-mono text-[12px] tracking-[.02em] shadow-lg flex items-center gap-3"
           style={{
             background: toast.type === "error" ? "#e8452c" : "#1a1713",
             color: "#f4ecdc",
