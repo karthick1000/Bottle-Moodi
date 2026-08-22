@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { prisma } from '@/lib/prisma';
 import { subscribeEmail, getSubscribers } from '@/lib/db/newsletter';
 
-const mockSubscriber = { id: 1, email: 'test@example.com', createdAt: new Date() };
+const mockSubscriber = {
+  id: 1,
+  email: 'test@example.com',
+  createdAt: new Date(),
+  unsubscribedAt: null,
+};
 
 beforeEach(() => {
   vi.clearAllMocks();

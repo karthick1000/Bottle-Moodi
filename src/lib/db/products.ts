@@ -21,11 +21,27 @@ async function _getAllProducts(activeOnly = true) {
   });
 }
 
+/**
+ * Cached product list for public pages (shop, home, product detail).
+ * Invalidated by revalidateTag("products") on every product/image mutation.
+ * The activeOnly flag is part of the cache key so the admin (false) and
+ * storefront (true) views never share an entry.
+ */
 export const getAllProducts = unstable_cache(
   _getAllProducts,
   ["products-list"],
   { tags: ["products"] }
 );
+
+/**
+ * Uncached product list — always hits the DB.
+ * The admin console must never read from cache: it is the surface where
+ * products are created and edited, so a stale entry there looks like data
+ * loss. Public pages keep using the cached getAllProducts above.
+ */
+export async function getAllProductsUncached(activeOnly = false) {
+  return _getAllProducts(activeOnly);
+}
 
 export async function getProductBySlug(slug: string) {
   return prisma.product.findUnique({

@@ -45,13 +45,14 @@ describe('getAllOrders', () => {
 describe('createOrder', () => {
   it('creates an order with items', async () => {
     vi.mocked(prisma.order.create).mockResolvedValue(mockOrder as never);
-    const items = [{ productId: 1, size: 'A3', amount: 649 }];
-    const result = await createOrder('user_1', items);
+    const items = [{ productId: 1, size: 'A3', amount: 2, unitPrice: 649 }];
+    const result = await createOrder('user_1', items, 7);
     expect(result).toEqual(mockOrder);
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           clerkUserId: 'user_1',
+          addressId: 7,
           shipping: 79,
           items: { create: items },
         }),
@@ -61,7 +62,7 @@ describe('createOrder', () => {
 
   it('accepts custom shipping', async () => {
     vi.mocked(prisma.order.create).mockResolvedValue(mockOrder as never);
-    await createOrder('user_1', [{ productId: 1, size: 'A3', amount: 649 }], 150);
+    await createOrder('user_1', [{ productId: 1, size: 'A3', amount: 2, unitPrice: 649 }], 7, 150);
     expect(prisma.order.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ shipping: 150 }),
