@@ -1,4 +1,4 @@
-import { unstable_cache } from "next/cache";
+import { unstable_cache, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
 
 const PRODUCT_SELECT = {
@@ -43,7 +43,9 @@ export async function createProduct(data: {
   sub: string;
   active?: boolean;
 }) {
-  return prisma.product.create({ data, select: PRODUCT_SELECT });
+  const product = await prisma.product.create({ data, select: PRODUCT_SELECT });
+  revalidateTag("products");
+  return product;
 }
 
 export async function updateProduct(
@@ -58,9 +60,12 @@ export async function updateProduct(
     active: boolean;
   }>
 ) {
-  return prisma.product.update({ where: { id }, data, select: PRODUCT_SELECT });
+  const product = await prisma.product.update({ where: { id }, data, select: PRODUCT_SELECT });
+  revalidateTag("products");
+  return product;
 }
 
 export async function deleteProduct(id: number): Promise<void> {
   await prisma.product.delete({ where: { id } });
+  revalidateTag("products");
 }
