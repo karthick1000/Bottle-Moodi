@@ -143,8 +143,18 @@ export function Header() {
             )}
           </div>
 
-          {/* Mobile: cart + hamburger */}
-          <div className="md:hidden flex items-center gap-3">
+          {/* Mobile: my orders → bag → hamburger */}
+          <div className="md:hidden flex items-center gap-2">
+            {isSignedIn && (
+              <Link
+                href="/my-orders"
+                onClick={close}
+                aria-label="My Orders"
+                className="border-[1.5px] border-[#e8452c] text-[#e8452c] rounded-sm hover:bg-[#e8452c] hover:text-cream transition-colors w-10 h-10 flex items-center justify-center"
+              >
+                <OrdersIcon />
+              </Link>
+            )}
             <button
               onClick={toggleCart}
               className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] font-semibold px-3 py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px] flex items-center gap-1.5"
@@ -177,12 +187,12 @@ export function Header() {
       {/* Mobile nav overlay */}
       {menuOpen && (
         <div className="md:hidden fixed top-[60px] inset-x-0 bottom-0 z-[50] flex flex-col overflow-y-auto" style={{ background: "#1a1713" }}>
+          {/* Nav links */}
           <nav className="flex flex-col px-6 py-8 gap-1">
             {[
               { href: "/shop", label: "Kadai / Shop" },
               { href: "/#story", label: "Story" },
               { href: "/#soon", label: "Coming soon" },
-              ...(isSignedIn ? [{ href: "/my-orders", label: "My Orders" }] : []),
             ].map(({ href, label }) => (
               <Link
                 key={href}
@@ -194,6 +204,29 @@ export function Header() {
               </Link>
             ))}
           </nav>
+
+          {/* Action buttons: My Orders → Bag → Profile (same order as desktop) */}
+          <div className="px-6 flex flex-col gap-3 pb-6">
+            {isSignedIn && (
+              <Link
+                href="/my-orders"
+                onClick={close}
+                className="border-[1.5px] border-[#e8452c] text-[#e8452c] font-inter text-[13px] font-semibold px-4 py-3 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors flex items-center gap-2"
+              >
+                <OrdersIcon />
+                MY ORDERS
+              </Link>
+            )}
+            <button
+              onClick={() => { close(); toggleCart(); }}
+              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[13px] font-semibold px-4 py-3 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors flex items-center gap-2"
+            >
+              <BagIcon />
+              BAG ({items.length})
+            </button>
+          </div>
+
+          {/* Profile / auth */}
           <div className="px-6 flex items-center gap-3 pb-2">
             {!isSignedIn ? (
               <>
