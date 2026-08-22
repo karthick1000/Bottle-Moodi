@@ -70,7 +70,7 @@ function OrderSkeleton() {
 }
 
 export default function MyOrdersPage() {
-  const { isSignedIn, isLoaded } = useAuth();
+  const { isSignedIn, isLoaded, userId } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
@@ -162,6 +162,9 @@ export default function MyOrdersPage() {
           >
             SHOP THE POSTERS
           </Link>
+          <p className="font-mono text-[9.5px] text-[#d9cfb8] mt-8 break-all">
+            session: {userId}
+          </p>
         </div>
       ) : (
         <div className="flex flex-col gap-5">
