@@ -5,6 +5,29 @@ import { useState, useEffect } from "react";
 import { useAuth, useUser, useClerk } from "@clerk/nextjs";
 import { useCartStore } from "@/lib/store";
 
+function BagIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+      <line x1="3" y1="6" x2="21" y2="6"/>
+      <path d="M16 10a4 4 0 0 1-8 0"/>
+    </svg>
+  );
+}
+
+function OrdersIcon() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/>
+      <rect x="9" y="3" width="6" height="4" rx="1"/>
+      <line x1="9" y1="12" x2="15" y2="12"/>
+      <line x1="9" y1="16" x2="13" y2="16"/>
+    </svg>
+  );
+}
+
+const redBtnCls = "cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] md:text-[12.5px] font-semibold px-3 md:px-[15px] py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px] flex items-center gap-1.5";
+
 function UserNav() {
   const { user } = useUser();
   const { signOut } = useClerk();
@@ -68,7 +91,7 @@ export function Header() {
             />
           </Link>
 
-          {/* Desktop right side: nav + auth + cart */}
+          {/* Desktop right side: nav → my orders → bag → profile */}
           <div className="hidden md:flex items-center gap-5 lg:gap-6">
             <nav className="flex items-center gap-5 lg:gap-6">
               <Link href="/shop" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
@@ -80,14 +103,23 @@ export function Header() {
               <Link href="/#soon" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
                 Coming soon
               </Link>
-              {isSignedIn && (
-                <Link href="/my-orders" className="text-cream hover:text-[#e8452c] text-[13.5px] font-medium transition-colors">
-                  My Orders
-                </Link>
-              )}
             </nav>
 
-            {/* Auth */}
+            {/* My Orders */}
+            {isSignedIn && (
+              <Link href="/my-orders" className={redBtnCls}>
+                <OrdersIcon />
+                MY ORDERS
+              </Link>
+            )}
+
+            {/* Bag */}
+            <button onClick={toggleCart} className={redBtnCls}>
+              <BagIcon />
+              BAG ({items.length})
+            </button>
+
+            {/* Profile / auth */}
             {!isSignedIn ? (
               <div className="flex items-center gap-2" style={{ fontSize: 13, fontWeight: 500 }}>
                 <button
@@ -109,22 +141,25 @@ export function Header() {
             ) : (
               <UserNav />
             )}
-
-            {/* Cart */}
-            <button
-              onClick={toggleCart}
-              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] md:text-[12.5px] font-semibold px-3 md:px-[15px] py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px]"
-            >
-              BAG ({items.length})
-            </button>
           </div>
 
-          {/* Mobile: cart + hamburger */}
-          <div className="md:hidden flex items-center gap-3">
+          {/* Mobile: my orders → bag → hamburger */}
+          <div className="md:hidden flex items-center gap-2">
+            {isSignedIn && (
+              <Link
+                href="/my-orders"
+                onClick={close}
+                aria-label="My Orders"
+                className="border-[1.5px] border-[#e8452c] text-[#e8452c] rounded-sm hover:bg-[#e8452c] hover:text-cream transition-colors w-10 h-10 flex items-center justify-center"
+              >
+                <OrdersIcon />
+              </Link>
+            )}
             <button
               onClick={toggleCart}
-              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] font-semibold px-3 py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px]"
+              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[12px] font-semibold px-3 py-2 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors min-h-[40px] flex items-center gap-1.5"
             >
+              <BagIcon />
               BAG ({items.length})
             </button>
             <button
@@ -152,12 +187,12 @@ export function Header() {
       {/* Mobile nav overlay */}
       {menuOpen && (
         <div className="md:hidden fixed top-[60px] inset-x-0 bottom-0 z-[50] flex flex-col overflow-y-auto" style={{ background: "#1a1713" }}>
+          {/* Nav links */}
           <nav className="flex flex-col px-6 py-8 gap-1">
             {[
               { href: "/shop", label: "Kadai / Shop" },
               { href: "/#story", label: "Story" },
               { href: "/#soon", label: "Coming soon" },
-              ...(isSignedIn ? [{ href: "/my-orders", label: "My Orders" }] : []),
             ].map(({ href, label }) => (
               <Link
                 key={href}
@@ -169,6 +204,29 @@ export function Header() {
               </Link>
             ))}
           </nav>
+
+          {/* Action buttons: My Orders → Bag → Profile (same order as desktop) */}
+          <div className="px-6 flex flex-col gap-3 pb-6">
+            {isSignedIn && (
+              <Link
+                href="/my-orders"
+                onClick={close}
+                className="border-[1.5px] border-[#e8452c] text-[#e8452c] font-inter text-[13px] font-semibold px-4 py-3 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors flex items-center gap-2"
+              >
+                <OrdersIcon />
+                MY ORDERS
+              </Link>
+            )}
+            <button
+              onClick={() => { close(); toggleCart(); }}
+              className="cursor-pointer border-[1.5px] border-[#e8452c] bg-transparent text-[#e8452c] font-inter text-[13px] font-semibold px-4 py-3 rounded-sm tracking-[.04em] hover:bg-[#e8452c] hover:text-cream transition-colors flex items-center gap-2"
+            >
+              <BagIcon />
+              BAG ({items.length})
+            </button>
+          </div>
+
+          {/* Profile / auth */}
           <div className="px-6 flex items-center gap-3 pb-2">
             {!isSignedIn ? (
               <>
