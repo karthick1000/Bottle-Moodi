@@ -107,6 +107,15 @@ model CartItem {
   @@unique([clerkUserId, productId, size])
 }
 
+/// Key/value store for editable site content (hero copy, studio photo, ...).
+/// Keeps homepage customisation out of the codebase so the admin can change
+/// it without a deploy.
+model SiteSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model NewsletterSubscriber {
   id             Int       @id @default(autoincrement())
   email          String    @unique
