@@ -55,16 +55,30 @@ a:hover {
 /* ── Tagline marquee ───────────────────────────────────────────────────────
    The track holds two identical halves and slides to -50%, so the wrap point
    lands exactly where the loop began and never shows a seam.
+
+   The duration is set per breakpoint rather than once. The band's type is
+   clamp(18px,3.4vw,42px), so the track is roughly 2280px wide on a phone and
+   5250px on a desktop — a single duration would race at one end and crawl at
+   the other. These values hold it near 55px/s everywhere, which reads as a
+   calm drift rather than a ticker.
+
+   The band deliberately does not pause on hover: the pointer often rests over
+   it mid-scroll, and a strip that stops and starts as the page moves is more
+   distracting than one that simply keeps going.
 */
 .bm-marquee-track {
-  animation: bm-marq 38s linear infinite;
+  animation: bm-marq var(--bm-marq-duration) linear infinite;
   will-change: transform;
 }
 
-/* Let a reader stop the band to actually read it. */
-.bm-marquee:hover .bm-marquee-track,
-.bm-marquee:focus-within .bm-marquee-track {
-  animation-play-state: paused;
+.bm-marquee { --bm-marq-duration: 42s; }
+
+@media (min-width: 768px) {
+  .bm-marquee { --bm-marq-duration: 62s; }
+}
+
+@media (min-width: 1024px) {
+  .bm-marquee { --bm-marq-duration: 95s; }
 }
 
 @media (prefers-reduced-motion: reduce) {
