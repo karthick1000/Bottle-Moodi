@@ -1,30 +1,60 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { AnimatedCap } from "@/components/AnimatedCap";
 import { ProductCard } from "@/components/ProductCard";
+import { BottleLoader, ProductCardSkeleton } from "@/components/BottleLoader";
 import type { Product } from "@/lib/data";
+
+interface HomeImages {
+  studioPhotoUrl: string;
+  teeMockupUrl: string;
+  toteMockupUrl: string;
+}
+
+/** One square tile in the Coming Soon grid: uploaded image, or placeholder. */
+function MockupTile({ url, label, alt }: { url: string; label: string; alt: string }) {
+  if (!url) {
+    return (
+      <div className="aspect-square border border-[#d9cfb8] hatch-light flex items-center justify-center">
+        <span className="font-mono text-[9px] md:text-[10px] text-[#6e6455]">[ {label} ]</span>
+      </div>
+    );
+  }
+  return (
+    <div className="aspect-square border border-[#d9cfb8] overflow-hidden">
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={url} alt={alt} className="w-full h-full object-cover" />
+    </div>
+  );
+}
 
 export default function HomePage() {
   const [email, setEmail] = useState("");
   const [subMsg, setSubMsg] = useState("");
   const [featured, setFeatured] = useState<Product[]>([]);
   const [featuredLoaded, setFeaturedLoaded] = useState(false);
-  const [studioPhotoUrl, setStudioPhotoUrl] = useState("");
-
-  // Editable homepage content, managed from /minad → Homepage
-  useState(() => {
-    fetch("/api/settings")
-      .then((r) => r.json())
-      .then((s) => {
-        if (typeof s?.studioPhotoUrl === "string") setStudioPhotoUrl(s.studioPhotoUrl);
-      })
-      .catch(() => {});
+  const [images, setImages] = useState<HomeImages>({
+    studioPhotoUrl: "", teeMockupUrl: "", toteMockupUrl: "",
   });
 
+  // Editable homepage content, managed from /minad → Homepage
+  useEffect(() => {
+    fetch("/api/settings")
+      .then((r) => r.json())
+      .then((s) =>
+        setImages({
+          studioPhotoUrl: typeof s?.studioPhotoUrl === "string" ? s.studioPhotoUrl : "",
+          teeMockupUrl:   typeof s?.teeMockupUrl   === "string" ? s.teeMockupUrl   : "",
+          toteMockupUrl:  typeof s?.toteMockupUrl  === "string" ? s.toteMockupUrl  : "",
+        })
+      )
+      .catch(() => {});
+  }, []);
+
   // Fetch the 4 most recently added active products on mount
-  useState(() => {
+  useEffect(() => {
     fetch("/api/products")
       .then((r) => r.json())
       .then((products: Product[]) => {
@@ -34,7 +64,7 @@ export default function HomePage() {
       })
       .catch(() => {})
       .finally(() => setFeaturedLoaded(true));
-  });
+  }, []);
 
   const subscribe = async () => {
     if (!email.includes("@")) {
@@ -175,10 +205,10 @@ export default function HomePage() {
           className="hidden lg:flex relative border border-[#d9cfb8] hatch-light items-center justify-center text-center p-6 overflow-hidden"
           style={{ aspectRatio: "4/5" }}
         >
-          {studioPhotoUrl ? (
+          {images.studioPhotoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              src={studioPhotoUrl}
+              src={images.studioPhotoUrl}
               alt="Bottlemoodi posters on a studio wall"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -192,7 +222,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ── Latest Four — hidden until loaded and only when products exist ── */}
+      {/* While products are still loading, hold the section with skeletons so
+          the page does not jump when they arrive. */}
+      {!featuredLoaded && (
+        <section className="bg-dark text-cream py-16 md:py-[92px]">
+          <div className="max-w-[1400px] mx-auto px-4 md:px-7">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-[22px]">
+              {[0, 1, 2, 3].map((i) => (
+                <ProductCardSkeleton key={i} dark />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ── Latest Four — only once loaded and only when products exist ── */}
       {featuredLoaded && featured.length > 0 && (
         <section className="bg-dark text-cream py-16 md:py-[92px]">
           <div className="max-w-[1400px] mx-auto px-4 md:px-7">
@@ -264,10 +308,10 @@ export default function HomePage() {
           )}
         </div>
 
+        {/* Tee and tote tiles are uploaded from /minad → Homepage; each falls
+            back to its hatched placeholder until one is set. */}
         <div className="grid grid-cols-2 gap-3 md:gap-3.5">
-          <div className="aspect-square border border-[#d9cfb8] hatch-light flex items-center justify-center">
-            <span className="font-mono text-[9px] md:text-[10px] text-[#6e6455]">[ TEE MOCKUP ]</span>
-          </div>
+          <MockupTile url={images.teeMockupUrl} label="TEE MOCKUP" alt="Bottlemoodi tee mockup" />
           <div className="aspect-square border border-dark bg-[#e8452c] flex items-center justify-center p-3 md:p-4 text-center">
             <span className="font-bakbak text-[18px] md:text-[22px] leading-[1.1] text-cream">
               SOON
@@ -280,9 +324,7 @@ export default function HomePage() {
               அப்பறம் வாங்க
             </span>
           </div>
-          <div className="aspect-square border border-[#d9cfb8] hatch-light flex items-center justify-center">
-            <span className="font-mono text-[9px] md:text-[10px] text-[#6e6455]">[ TOTE MOCKUP ]</span>
-          </div>
+          <MockupTile url={images.toteMockupUrl} label="TOTE MOCKUP" alt="Bottlemoodi tote mockup" />
         </div>
       </section>
     </main>

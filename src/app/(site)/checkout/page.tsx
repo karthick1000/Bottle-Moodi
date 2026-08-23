@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/store";
 import { money, SHIPPING } from "@/lib/data";
+import { CapDisc } from "@/components/CapDisc";
 
 // ── Razorpay global type ─────────────────────────────────────────────────────
 
@@ -490,7 +491,10 @@ export default function CheckoutPage() {
               className="w-full mt-5 border-none bg-[#e8452c] text-cream font-bakbak text-[15px] md:text-[16px] py-4 md:py-[17px] rounded-sm tracking-[.04em] hover:bg-dark transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[52px] flex items-center justify-center gap-2"
             >
               {paying ? (
-                "PROCESSING…"
+                <>
+                  <CapDisc size={18} spinning />
+                  PROCESSING…
+                </>
               ) : (
                 <>
                   PAY {money(total)}
