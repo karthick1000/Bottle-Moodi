@@ -5,7 +5,6 @@ import Link from "next/link";
 import { AnimatedCap } from "@/components/AnimatedCap";
 import { ProductCard } from "@/components/ProductCard";
 import { BottleLoader, ProductCardSkeleton } from "@/components/BottleLoader";
-import { SectionDivider } from "@/components/SectionDivider";
 import { TaglineMarquee } from "@/components/TaglineMarquee";
 import type { Product } from "@/lib/data";
 
@@ -163,8 +162,6 @@ export default function HomePage() {
       {/* ── Tagline Banner ── */}
       <TaglineMarquee text={content.tagline} />
 
-      <SectionDivider />
-
       {/* ── Story ── */}
       <section
         id="story"
@@ -233,8 +230,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      <SectionDivider />
-
       {/* While products are still loading, hold the section with skeletons so
           the page does not jump when they arrive. */}
       {!featuredLoaded && (
@@ -280,8 +275,6 @@ export default function HomePage() {
           </div>
         </section>
       )}
-
-      <SectionDivider />
 
       {/* ── Coming Soon ── */}
       <section
