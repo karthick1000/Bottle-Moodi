@@ -5,13 +5,30 @@ import Link from "next/link";
 import { AnimatedCap } from "@/components/AnimatedCap";
 import { ProductCard } from "@/components/ProductCard";
 import { BottleLoader, ProductCardSkeleton } from "@/components/BottleLoader";
+import { SectionDivider } from "@/components/SectionDivider";
+import { TaglineMarquee } from "@/components/TaglineMarquee";
 import type { Product } from "@/lib/data";
 
-interface HomeImages {
+interface HomeContent {
+  tagline: string;
+  strip: string;
   studioPhotoUrl: string;
   teeMockupUrl: string;
   toteMockupUrl: string;
 }
+
+/** Rendered until /api/settings answers, so the bands never flash empty.
+ *  Mirrors SETTING_DEFAULTS in lib/db/settings.ts. */
+const CONTENT_FALLBACK: HomeContent = {
+  tagline: "Bottle Moodi — Mood-க்கு ஏத்த Design",
+  strip:   "NOW SHOWING · POSTERS · CHENNAI",
+  studioPhotoUrl: "",
+  teeMockupUrl:   "",
+  toteMockupUrl:  "",
+};
+
+const str = (v: unknown, fallback: string) =>
+  typeof v === "string" && v.trim() !== "" ? v : fallback;
 
 /** One square tile in the Coming Soon grid: uploaded image, or placeholder. */
 function MockupTile({ url, label, alt }: { url: string; label: string; alt: string }) {
@@ -35,19 +52,19 @@ export default function HomePage() {
   const [subMsg, setSubMsg] = useState("");
   const [featured, setFeatured] = useState<Product[]>([]);
   const [featuredLoaded, setFeaturedLoaded] = useState(false);
-  const [images, setImages] = useState<HomeImages>({
-    studioPhotoUrl: "", teeMockupUrl: "", toteMockupUrl: "",
-  });
+  const [content, setContent] = useState<HomeContent>(CONTENT_FALLBACK);
 
   // Editable homepage content, managed from /minad → Homepage
   useEffect(() => {
     fetch("/api/settings")
       .then((r) => r.json())
       .then((s) =>
-        setImages({
-          studioPhotoUrl: typeof s?.studioPhotoUrl === "string" ? s.studioPhotoUrl : "",
-          teeMockupUrl:   typeof s?.teeMockupUrl   === "string" ? s.teeMockupUrl   : "",
-          toteMockupUrl:  typeof s?.toteMockupUrl  === "string" ? s.toteMockupUrl  : "",
+        setContent({
+          tagline:        str(s?.tagline,  CONTENT_FALLBACK.tagline),
+          strip:          str(s?.strip,    CONTENT_FALLBACK.strip),
+          studioPhotoUrl: str(s?.studioPhotoUrl, ""),
+          teeMockupUrl:   str(s?.teeMockupUrl,   ""),
+          toteMockupUrl:  str(s?.toteMockupUrl,  ""),
         })
       )
       .catch(() => {});
@@ -98,7 +115,7 @@ export default function HomePage() {
       <section className="bg-dark text-cream pt-3.5">
         <div className="max-w-[1400px] mx-auto px-4 md:px-7 pb-12 md:pb-[76px] text-center border-x border-[#3a332a]">
           <div className="border-t-[3px] border-double border-[#e8452c] border-b border-[#3a332a] py-2.5 mb-8 md:mb-16 font-bakbak text-[10px] md:text-[12px] tracking-[.3em] md:tracking-[.42em] text-[#c4b79c]">
-            NOW SHOWING · POSTERS · CHENNAI
+            {content.strip}
           </div>
 
           {/* hero cap slot — sized smaller on mobile */}
@@ -144,15 +161,9 @@ export default function HomePage() {
       </section>
 
       {/* ── Tagline Banner ── */}
-      <div className="bg-[#e8452c] text-cream border-y border-dark py-5 md:py-6 px-4 md:px-6 text-center">
-        <div
-          className="font-bakbak tracking-[.01em]"
-          style={{ fontSize: "clamp(18px,3.4vw,42px)" }}
-        >
-          Bottle Moodi —{" "}
-          <span className="font-anek font-bold">Mood-க்கு ஏத்த Design</span>
-        </div>
-      </div>
+      <TaglineMarquee text={content.tagline} />
+
+      <SectionDivider />
 
       {/* ── Story ── */}
       <section
@@ -205,10 +216,10 @@ export default function HomePage() {
           className="hidden lg:flex relative border border-[#d9cfb8] hatch-light items-center justify-center text-center p-6 overflow-hidden"
           style={{ aspectRatio: "4/5" }}
         >
-          {images.studioPhotoUrl ? (
+          {content.studioPhotoUrl ? (
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
-              src={images.studioPhotoUrl}
+              src={content.studioPhotoUrl}
               alt="Bottlemoodi posters on a studio wall"
               className="absolute inset-0 w-full h-full object-cover"
             />
@@ -221,6 +232,8 @@ export default function HomePage() {
           )}
         </div>
       </section>
+
+      <SectionDivider />
 
       {/* While products are still loading, hold the section with skeletons so
           the page does not jump when they arrive. */}
@@ -268,6 +281,8 @@ export default function HomePage() {
         </section>
       )}
 
+      <SectionDivider />
+
       {/* ── Coming Soon ── */}
       <section
         id="soon"
@@ -311,7 +326,7 @@ export default function HomePage() {
         {/* Tee and tote tiles are uploaded from /minad → Homepage; each falls
             back to its hatched placeholder until one is set. */}
         <div className="grid grid-cols-2 gap-3 md:gap-3.5">
-          <MockupTile url={images.teeMockupUrl} label="TEE MOCKUP" alt="Bottlemoodi tee mockup" />
+          <MockupTile url={content.teeMockupUrl} label="TEE MOCKUP" alt="Bottlemoodi tee mockup" />
           <div className="aspect-square border border-dark bg-[#e8452c] flex items-center justify-center p-3 md:p-4 text-center">
             <span className="font-bakbak text-[18px] md:text-[22px] leading-[1.1] text-cream">
               SOON
@@ -324,7 +339,7 @@ export default function HomePage() {
               அப்பறம் வாங்க
             </span>
           </div>
-          <MockupTile url={images.toteMockupUrl} label="TOTE MOCKUP" alt="Bottlemoodi tote mockup" />
+          <MockupTile url={content.toteMockupUrl} label="TOTE MOCKUP" alt="Bottlemoodi tote mockup" />
         </div>
       </section>
     </main>

@@ -52,6 +52,86 @@ a:hover {
   background: repeating-conic-gradient(from 0deg, #e8452c 0 4.2deg, #a82d19 4.2deg 8.4deg);
 }
 
+/* ── Film strip section divider ────────────────────────────────────────────
+   The homepage sections are labelled REEL 01 / 02 / 03, so the dividers are
+   35mm sprocket edges. Perforations are drawn with a repeating gradient
+   rather than DOM nodes so the strip scales to any width for free, and the
+   whole row creeps sideways to read as film running through a gate.
+*/
+.bm-film {
+  position: relative;
+  height: 46px;
+  background-color: #1a1713;
+  overflow: hidden;
+}
+
+/* The two perforation rows. */
+.bm-film::before,
+.bm-film::after {
+  content: "";
+  position: absolute;
+  left: -30px;
+  right: -30px;
+  height: 9px;
+  background-image: repeating-linear-gradient(
+    to right,
+    #f4ecdc 0 13px,
+    transparent 13px 30px
+  );
+  animation: bm-film-run 3.2s linear infinite;
+}
+.bm-film::before { top: 7px; }
+.bm-film::after  { bottom: 7px; }
+
+/* Hairline through the gate, so the strip still reads against a dark
+   section that shares its background colour. */
+.bm-film-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    #e8452c 12%,
+    #e8452c 88%,
+    transparent
+  );
+  opacity: 0.55;
+}
+
+@keyframes bm-film-run {
+  to { transform: translateX(30px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bm-film::before,
+  .bm-film::after { animation: none; }
+}
+
+/* ── Tagline marquee ───────────────────────────────────────────────────────
+   The track holds two identical halves and slides to -50%, so the wrap point
+   lands exactly where the loop began and never shows a seam.
+*/
+.bm-marquee-track {
+  animation: bm-marq 38s linear infinite;
+  will-change: transform;
+}
+
+/* Let a reader stop the band to actually read it. */
+.bm-marquee:hover .bm-marquee-track,
+.bm-marquee:focus-within .bm-marquee-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bm-marquee-track { animation: none; }
+  /* Without motion the duplicate halves are just noise; show one, centred. */
+  .bm-marquee-track > div:nth-child(2) { display: none; }
+  .bm-marquee-track { justify-content: center; width: 100%; }
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 4px;
