@@ -7,6 +7,8 @@ export const SETTING_DEFAULTS = {
   headline:       "NORMAL IS NOT OUR SIZE",
   strip:          "NOW SHOWING · POSTERS · CHENNAI",
   studioPhotoUrl: "",
+  teeMockupUrl:   "",
+  toteMockupUrl:  "",
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;

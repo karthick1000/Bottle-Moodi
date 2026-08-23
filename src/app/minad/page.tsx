@@ -69,6 +69,38 @@ const BarTip = ({ active, payload, label }: { active?: boolean; payload?: {value
   );
 };
 
+// ── Loading state ──────────────────────────────────────────────────────────
+
+/** Spinning cap shown while a tab's data is in flight. */
+function AdminLoader({ label = "Loading" }: { label?: string }) {
+  return (
+    <div role="status" aria-live="polite"
+      style={{ display:"flex", flexDirection:"column", alignItems:"center",
+        justifyContent:"center", gap:12, padding:"56px 0" }}>
+      <span style={{ width:44, height:44, borderRadius:"50%", display:"flex",
+        alignItems:"center", justifyContent:"center", flexShrink:0,
+        background:"repeating-conic-gradient(from 0deg,#e8452c 0 4.2deg,#a82d19 4.2deg 8.4deg)",
+        animation:"bm-spin 7s linear infinite" }}>
+        <span style={{ width:"76%", height:"76%", borderRadius:"50%", background:"#e8452c",
+          boxShadow:"inset 0 0 0 1.5px rgba(226,231,211,.5)" }}/>
+      </span>
+      <span style={{ fontSize:11, letterSpacing:".18em", textTransform:"uppercase",
+        color:"#87998d", fontFamily:"ui-monospace,Menlo,monospace" }}>
+        {label}
+      </span>
+    </div>
+  );
+}
+
+/** Shown when a tab loaded fine but there is genuinely nothing yet. */
+function EmptyState({ text }: { text: string }) {
+  return (
+    <div style={{ padding:"44px 0", textAlign:"center", fontSize:13.5, color:"#87998d" }}>
+      {text}
+    </div>
+  );
+}
+
 // ── Cap logo ───────────────────────────────────────────────────────────────
 
 function CapLogo({ size = 30 }: { size?: number }) {
@@ -139,6 +171,36 @@ const RESPONSIVE_CSS = `
 
 // ── Tabs ───────────────────────────────────────────────────────────────────
 
+/** SiteSetting keys holding a homepage image. */
+type ImageKey = "studioPhotoUrl" | "teeMockupUrl" | "toteMockupUrl";
+
+const IMAGE_FIELDS: { key: ImageKey; label: string; hint: string; ratio: string }[] = [
+  { key:"studioPhotoUrl", label:"Studio photo", ratio:"4/5",
+    hint:"Beside the story section. Portrait 4:5 works best." },
+  { key:"teeMockupUrl",   label:"Tee mockup",   ratio:"1/1",
+    hint:"Top-left tile of the Coming Soon grid. Square." },
+  { key:"toteMockupUrl",  label:"Tote mockup",  ratio:"1/1",
+    hint:"Bottom-right tile of the Coming Soon grid. Square." },
+];
+
+/**
+ * Mutating request helper. A bare `fetch(...).then(onSuccess)` runs the
+ * success path for a 403 too, which silently desyncs the console from the DB
+ * (an operator sees "Deleted" for a row that is still there). Every admin
+ * mutation goes through this so a non-2xx reliably throws.
+ */
+async function apiSend(url: string, method: string, body?: unknown) {
+  const res = await fetch(url, {
+    method,
+    ...(body !== undefined
+      ? { headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+      : {}),
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(data?.error ?? `HTTP ${res.status}`);
+  return data;
+}
+
 type Tab = "dash"|"products"|"orders"|"discounts"|"homepage";
 const TABS: [Tab, string][] = [
   ["dash","Dashboard"],["products","Products"],["orders","Orders"],
@@ -155,10 +217,14 @@ export default function AdminPage() {
   const [saved,   setSaved]   = useState("");
   const [sideOpen,setSideOpen]= useState(false);
 
-  const [products,      setProducts]      = useState<Product[]>([]);
-  const [productsError, setProductsError] = useState("");
-  const [orders,      setOrders]      = useState<Order[]>([]);
-  const [codes,       setCodes]       = useState<DiscountCode[]>([]);
+  const [products,        setProducts]        = useState<Product[]>([]);
+  const [productsError,   setProductsError]   = useState("");
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [orders,          setOrders]          = useState<Order[]>([]);
+  const [ordersLoading,   setOrdersLoading]   = useState(true);
+  const [codes,           setCodes]           = useState<DiscountCode[]>([]);
+  const [codesLoading,    setCodesLoading]    = useState(true);
+  const [settingsLoading, setSettingsLoading] = useState(true);
   const [newCode,     setNewCode]     = useState("");
   const [newPct,      setNewPct]      = useState("");
   const [newType,     setNewType]     = useState<"PERCENT"|"FLAT">("PERCENT");
@@ -171,8 +237,11 @@ export default function AdminPage() {
   const [headline, setHeadline] = useState("NORMAL IS NOT OUR SIZE");
   const [strip,    setStrip]    = useState("NOW SHOWING · POSTERS · CHENNAI");
   const [featured, setFeatured] = useState<number[]>([]);
-  const [studioPhotoUrl, setStudioPhotoUrl] = useState("");
-  const [studioUploading, setStudioUploading] = useState(false);
+  // Homepage imagery, keyed by the SiteSetting key each one persists to.
+  const [images, setImages] = useState<Record<ImageKey, string>>({
+    studioPhotoUrl: "", teeMockupUrl: "", toteMockupUrl: "",
+  });
+  const [uploadingKey, setUploadingKey] = useState<ImageKey | null>(null);
 
   const fileRefs = useRef<Record<number, HTMLInputElement|null>>({});
   // Pending debounce timers, keyed by `${productId}:${field}`.
@@ -199,7 +268,8 @@ export default function AdminPage() {
       .then((data: DiscountCode[]) => {
         if (Array.isArray(data)) setCodes(data);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setCodesLoading(false));
   }, []);
 
   // Fetch products from DB. Never swallow the failure — an empty table that
@@ -225,7 +295,8 @@ export default function AdminPage() {
           setProductsError("Unexpected response from the products API.");
         }
       })
-      .catch(() => setProductsError("Network error while loading products."));
+      .catch(() => setProductsError("Network error while loading products."))
+      .finally(() => setProductsLoading(false));
   }, []);
 
   // Fetch orders from DB
@@ -244,7 +315,8 @@ export default function AdminPage() {
         }));
         setOrders(mapped);
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setOrdersLoading(false));
   }, []);
 
   // Fetch editable homepage content from DB
@@ -256,9 +328,14 @@ export default function AdminPage() {
         if (typeof s.tagline  === "string") setTagline(s.tagline);
         if (typeof s.headline === "string") setHeadline(s.headline);
         if (typeof s.strip    === "string") setStrip(s.strip);
-        if (typeof s.studioPhotoUrl === "string") setStudioPhotoUrl(s.studioPhotoUrl);
+        setImages({
+          studioPhotoUrl: typeof s.studioPhotoUrl === "string" ? s.studioPhotoUrl : "",
+          teeMockupUrl:   typeof s.teeMockupUrl   === "string" ? s.teeMockupUrl   : "",
+          toteMockupUrl:  typeof s.toteMockupUrl  === "string" ? s.toteMockupUrl  : "",
+        });
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setSettingsLoading(false));
   }, []);
 
   const flash = (msg: string) => {
@@ -266,50 +343,43 @@ export default function AdminPage() {
     setTimeout(() => setSaved(""), 1800);
   };
 
-  const saveHomepage = () => {
-    fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tagline, headline, strip, studioPhotoUrl }),
-    })
-      .then(r => flash(r.ok ? "Homepage saved" : `Save failed (${r.status})`))
-      .catch(() => flash("Save failed"));
+  const saveHomepage = async () => {
+    try {
+      await apiSend("/api/admin/settings", "PUT", { tagline, headline, strip, ...images });
+      flash("Homepage saved");
+    } catch (e) {
+      flash(`Save failed — ${(e as Error).message}`);
+    }
   };
 
-  // Studio photo goes to Cloudinary with no productId, then the returned URL
-  // is persisted as a site setting.
-  const uploadStudioPhoto = async (file: File) => {
-    setStudioUploading(true);
+  /** Uploads to Cloudinary with no productId, then persists the URL. */
+  const uploadImage = async (key: ImageKey, file: File) => {
+    setUploadingKey(key);
     try {
       const fd = new FormData();
       fd.append("file", file);
       const res  = await fetch("/api/upload", { method: "POST", body: fd });
       const data = await res.json().catch(() => null);
-      if (!res.ok || !data?.url) { flash("Upload failed"); return; }
+      if (!res.ok || !data?.url) throw new Error(data?.error ?? `HTTP ${res.status}`);
 
-      setStudioPhotoUrl(data.url);
-      const save = await fetch("/api/admin/settings", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ studioPhotoUrl: data.url }),
-      });
-      flash(save.ok ? "Studio photo saved" : "Uploaded, but saving failed");
-    } catch {
-      flash("Upload failed");
+      await apiSend("/api/admin/settings", "PUT", { [key]: data.url });
+      setImages(m => ({ ...m, [key]: data.url }));
+      flash("Image saved");
+    } catch (e) {
+      flash(`Upload failed — ${(e as Error).message}`);
     } finally {
-      setStudioUploading(false);
+      setUploadingKey(null);
     }
   };
 
-  const removeStudioPhoto = () => {
-    setStudioPhotoUrl("");
-    fetch("/api/admin/settings", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ studioPhotoUrl: "" }),
-    })
-      .then(r => flash(r.ok ? "Studio photo removed" : "Remove failed"))
-      .catch(() => flash("Remove failed"));
+  const removeImage = async (key: ImageKey) => {
+    try {
+      await apiSend("/api/admin/settings", "PUT", { [key]: "" });
+      setImages(m => ({ ...m, [key]: "" }));
+      flash("Image removed");
+    } catch (e) {
+      flash(`Remove failed — ${(e as Error).message}`);
+    }
   };
 
   const editProduct = (id: number, key: keyof Product) =>
@@ -323,38 +393,41 @@ export default function AdminPage() {
       const timerKey = `${id}:${String(key)}`;
       clearTimeout(saveTimers.current[timerKey]);
       saveTimers.current[timerKey] = setTimeout(() => {
-        fetch(`/api/admin/products/${id}`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ [key]: v }),
-        })
-          .then(r => flash(r.ok ? "Saved" : `Save failed (${r.status})`))
-          .catch(() => flash("Save failed"));
+        apiSend(`/api/admin/products/${id}`, "PUT", { [key]: v })
+          .then(() => flash("Saved"))
+          .catch((err: Error) => flash(`Save failed — ${err.message}`));
       }, 600);
     };
 
   const handleUpload = async (id: number, file: File) => {
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("productId", String(id));
-    const res  = await fetch("/api/upload", { method:"POST", body:fd });
-    const data = await res.json();
-    if (!data.url) { flash("Upload failed"); return; }
-    // Add new image to local state
-    setProducts(ps => ps.map(p => p.id===id
-      ? { ...p, images: [...p.images, data.image] }
-      : p
-    ));
-    flash("Image saved");
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      fd.append("productId", String(id));
+      const res  = await fetch("/api/upload", { method:"POST", body:fd });
+      const data = await res.json().catch(() => null);
+      if (!res.ok || !data?.url) throw new Error(data?.error ?? `HTTP ${res.status}`);
+      setProducts(ps => ps.map(p => p.id===id
+        ? { ...p, images: [...p.images, data.image] }
+        : p
+      ));
+      flash("Image saved");
+    } catch (e) {
+      flash(`Upload failed — ${(e as Error).message}`);
+    }
   };
 
   const handleDeleteImage = async (productId: number, imageId: number) => {
-    await fetch(`/api/upload/${imageId}`, { method: "DELETE" });
-    setProducts(ps => ps.map(p => p.id===productId
-      ? { ...p, images: p.images.filter(img => img.id !== imageId) }
-      : p
-    ));
-    flash("Image removed");
+    try {
+      await apiSend(`/api/upload/${imageId}`, "DELETE");
+      setProducts(ps => ps.map(p => p.id===productId
+        ? { ...p, images: p.images.filter(img => img.id !== imageId) }
+        : p
+      ));
+      flash("Image removed");
+    } catch (e) {
+      flash(`Remove failed — ${(e as Error).message}`);
+    }
   };
 
   const pickTab = (t: Tab) => { setTab(t); setSideOpen(false); };
@@ -448,7 +521,8 @@ export default function AdminPage() {
             </div>
 
             {/* ══ DASHBOARD ══ */}
-            {tab==="dash" && <>
+            {tab==="dash" && dashLoading && <AdminLoader label="Loading dashboard"/>}
+            {tab==="dash" && !dashLoading && <>
               <div className="bm-stat-grid">
                 {[
                   { label:"REVENUE (30D)", value: dashLoading ? "—" : `₹${dashData.revenue30d.toLocaleString("en-IN")}` },
@@ -550,7 +624,8 @@ export default function AdminPage() {
             </>}
 
             {/* ══ PRODUCTS ══ */}
-            {tab==="products" && <>
+            {tab==="products" && productsLoading && <AdminLoader label="Loading products"/>}
+            {tab==="products" && !productsLoading && <>
               {productsError && (
                 <div style={{ marginTop:18, padding:"11px 14px", borderRadius:4,
                   border:`1px solid ${C.red}`, background:"#fdeeeb",
@@ -569,10 +644,10 @@ export default function AdminPage() {
                       body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",base:499,sub:"New product description",active:false}),
                     }).then(async r=>{
                       const p = await r.json().catch(()=>null);
-                      if (!r.ok || !p?.id) { flash(`Create failed (${r.status})`); return; }
+                      if (!r.ok || !p?.id) throw new Error(p?.error ?? `HTTP ${r.status}`);
                       setProducts(ps=>[{...p,imageUrl:null},...ps]);
                       flash("Draft created");
-                    }).catch(()=>flash("Create failed"));
+                    }).catch((e:Error)=>flash(`Create failed — ${e.message}`));
                   }}
                   style={{ cursor:"pointer", border:"none", background:C.dark, color:C.card,
                     fontSize:13, fontWeight:600, padding:"9px 14px", borderRadius:4,
@@ -589,6 +664,9 @@ export default function AdminPage() {
                     <span>ART</span><span>TITLE</span><span>TAMIL</span>
                     <span>PRICE</span><span>STATUS</span><span>ACTIONS</span>
                   </div>
+                  {products.length === 0 && !productsError && (
+                    <EmptyState text="No products yet — create one with New product."/>
+                  )}
                   {products.map(p => (
                     <div key={p.id}
                       style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
@@ -635,14 +713,12 @@ export default function AdminPage() {
                       <div style={{ display:"flex", gap:6 }}>
                         <button onClick={()=>{
                           const newActive = !p.active;
-                          fetch(`/api/admin/products/${p.id}`, {
-                            method:"PUT",
-                            headers:{"Content-Type":"application/json"},
-                            body:JSON.stringify({active:newActive}),
-                          }).then(()=>{
-                            setProducts(ps=>ps.map(x=>x.id===p.id?{...x,active:newActive}:x));
-                            flash(newActive?"Restored":"Archived");
-                          }).catch(()=>flash("Update failed"));
+                          apiSend(`/api/admin/products/${p.id}`, "PUT", { active:newActive })
+                            .then(()=>{
+                              setProducts(ps=>ps.map(x=>x.id===p.id?{...x,active:newActive}:x));
+                              flash(newActive?"Restored":"Archived");
+                            })
+                            .catch((e:Error)=>flash(`Update failed — ${e.message}`));
                         }}
                           style={{ cursor:"pointer", border:`1px solid ${C.border}`, background:C.card,
                             fontSize:11.5, padding:"5px 9px", borderRadius:4,
@@ -651,9 +727,9 @@ export default function AdminPage() {
                         </button>
                         <button onClick={()=>{
                           if(!confirm("Delete this product?")) return;
-                          fetch(`/api/admin/products/${p.id}`, { method:"DELETE" })
+                          apiSend(`/api/admin/products/${p.id}`, "DELETE")
                             .then(()=>{ setProducts(ps=>ps.filter(x=>x.id!==p.id)); flash("Deleted"); })
-                            .catch(()=>flash("Delete failed"));
+                            .catch((e:Error)=>flash(`Delete failed — ${e.message}`));
                         }}
                           style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
                             color:C.red, fontSize:11.5, padding:"5px 9px", borderRadius:4 }}>
@@ -672,7 +748,8 @@ export default function AdminPage() {
             </>}
 
             {/* ══ ORDERS ══ */}
-            {tab==="orders" && (
+            {tab==="orders" && ordersLoading && <AdminLoader label="Loading orders"/>}
+            {tab==="orders" && !ordersLoading && (
               <div className="bm-table-wrap" style={{ marginTop:20 }}>
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:600 }}>
                   <div style={{ display:"grid", gridTemplateColumns:"100px 1.4fr 1.8fr .9fr 1.4fr",
@@ -680,6 +757,7 @@ export default function AdminPage() {
                     fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
                     <span>ORDER</span><span>CUSTOMER</span><span>ITEMS</span><span>TOTAL</span><span>FULFILMENT</span>
                   </div>
+                  {orders.length === 0 && <EmptyState text="No orders yet."/>}
                   {orders.map((o,i) => (
                     <div key={o.id}
                       style={{ display:"grid", gridTemplateColumns:"100px 1.4fr 1.8fr .9fr 1.4fr",
@@ -693,17 +771,10 @@ export default function AdminPage() {
                         onChange={e=>{
                           const v=e.target.value;
                           const dbId = o.dbId;
-                          if (dbId) {
-                            fetch(`/api/admin/orders/${dbId}`, {
-                              method:"PATCH",
-                              headers:{"Content-Type":"application/json"},
-                              body:JSON.stringify({status:v}),
-                            }).then(()=>{ setOrders(os=>os.map((x,j)=>j===i?{...x,status:v}:x)); flash("Order updated"); })
-                            .catch(()=>flash("Update failed"));
-                          } else {
-                            setOrders(os=>os.map((x,j)=>j===i?{...x,status:v}:x));
-                            flash("Order updated");
-                          }
+                          if (!dbId) { flash("Cannot update — order has no database id"); return; }
+                          apiSend(`/api/admin/orders/${dbId}`, "PATCH", { status:v })
+                            .then(()=>{ setOrders(os=>os.map((x,j)=>j===i?{...x,status:v}:x)); flash("Order updated"); })
+                            .catch((err:Error)=>flash(`Update failed — ${err.message}`));
                         }}
                         style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"6px 8px",
                           fontSize:12.5, background:C.card, outline:"none", cursor:"pointer" }}>
@@ -718,7 +789,8 @@ export default function AdminPage() {
             )}
 
             {/* ══ DISCOUNTS ══ */}
-            {tab==="discounts" && <>
+            {tab==="discounts" && codesLoading && <AdminLoader label="Loading codes"/>}
+            {tab==="discounts" && !codesLoading && <>
               <div style={{ display:"flex", gap:10, margin:"20px 0 14px", flexWrap:"wrap" }}>
                 <input value={newCode} onChange={e=>setNewCode(e.target.value.toUpperCase())}
                   placeholder="CODE"
@@ -740,17 +812,12 @@ export default function AdminPage() {
                     if (!code) return flash("Enter a code");
                     const val = parseInt(newPct, 10);
                     if (!val || val <= 0) return flash("Enter a valid value");
-                    fetch("/api/admin/discounts", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ code, type: newType, value: val }),
-                    })
-                      .then(r => r.json())
+                    apiSend("/api/admin/discounts", "POST", { code, type: newType, value: val })
                       .then((d: DiscountCode) => {
-                        if (d.id) { setCodes(cs => [d, ...cs]); setNewCode(""); setNewPct(""); flash("Code created"); }
-                        else flash("Create failed");
+                        if (!d?.id) throw new Error("Unexpected response");
+                        setCodes(cs => [d, ...cs]); setNewCode(""); setNewPct(""); flash("Code created");
                       })
-                      .catch(() => flash("Create failed"));
+                      .catch((e: Error) => flash(`Create failed — ${e.message}`));
                   }}
                   style={{ cursor:"pointer", border:"none", background:C.dark, color:C.card,
                     fontSize:13, fontWeight:600, padding:"9px 14px", borderRadius:4 }}>
@@ -765,6 +832,7 @@ export default function AdminPage() {
                     fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
                     <span>CODE</span><span>DISCOUNT</span><span>USES</span><span>STATUS</span><span></span><span></span>
                   </div>
+                  {codes.length === 0 && <EmptyState text="No discount codes yet."/>}
                   {codes.map(c => (
                     <div key={c.id}
                       style={{ display:"grid", gridTemplateColumns:"1.2fr .8fr .8fr 1fr .8fr .6fr",
@@ -777,14 +845,13 @@ export default function AdminPage() {
                         {c.active ? "Active" : "Inactive"}
                       </span>
                       <button onClick={()=>{
-                        fetch(`/api/admin/discounts/${c.id}`, {
-                          method:"PATCH",
-                          headers:{"Content-Type":"application/json"},
-                          body:JSON.stringify({active:!c.active}),
-                        })
-                          .then(r=>r.json())
-                          .then((d: DiscountCode)=>{ if(d.id){ setCodes(cs=>cs.map(x=>x.id===c.id?d:x)); flash(c.active?"Disabled":"Enabled"); } })
-                          .catch(()=>flash("Update failed"));
+                        apiSend(`/api/admin/discounts/${c.id}`, "PATCH", { active:!c.active })
+                          .then((d: DiscountCode)=>{
+                            if(!d?.id) throw new Error("Unexpected response");
+                            setCodes(cs=>cs.map(x=>x.id===c.id?d:x));
+                            flash(c.active?"Disabled":"Enabled");
+                          })
+                          .catch((e:Error)=>flash(`Update failed — ${e.message}`));
                       }}
                         style={{ cursor:"pointer", border:`1px solid ${C.border}`, background:C.card,
                           fontSize:12, padding:"6px 10px", borderRadius:4, justifySelf:"start" }}>
@@ -792,9 +859,9 @@ export default function AdminPage() {
                       </button>
                       <button onClick={()=>{
                         if(!confirm(`Delete ${c.code}?`)) return;
-                        fetch(`/api/admin/discounts/${c.id}`, { method:"DELETE" })
+                        apiSend(`/api/admin/discounts/${c.id}`, "DELETE")
                           .then(()=>{ setCodes(cs=>cs.filter(x=>x.id!==c.id)); flash("Deleted"); })
-                          .catch(()=>flash("Delete failed"));
+                          .catch((e:Error)=>flash(`Delete failed — ${e.message}`));
                       }}
                         style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
                           color:C.red, fontSize:12, padding:"6px 10px", borderRadius:4 }}>
@@ -807,7 +874,8 @@ export default function AdminPage() {
             </>}
 
             {/* ══ HOMEPAGE ══ */}
-            {tab==="homepage" && (
+            {tab==="homepage" && settingsLoading && <AdminLoader label="Loading content"/>}
+            {tab==="homepage" && !settingsLoading && (
               <div className="bm-hp-grid">
                 <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6,
                   padding:20, display:"grid", gap:16 }}>
@@ -845,51 +913,57 @@ export default function AdminPage() {
                       })}
                     </div>
                   </div>
-                  <div>
-                    <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#3b4a42", marginBottom:8 }}>
-                      Studio photo
-                    </label>
-                    <div style={{ display:"flex", gap:14, alignItems:"flex-start", flexWrap:"wrap" }}>
-                      <div style={{ width:104, aspectRatio:"4/5", flexShrink:0, borderRadius:4,
-                        border:`1px solid ${C.border}`, overflow:"hidden", background:C.thead,
-                        display:"flex", alignItems:"center", justifyContent:"center" }}>
-                        {studioPhotoUrl ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={studioPhotoUrl} alt="Studio photo"
-                            style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
-                        ) : (
-                          <span style={{ fontSize:10.5, color:C.faint, textAlign:"center", padding:6 }}>
-                            No photo
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display:"grid", gap:8 }}>
-                        <label style={{ cursor: studioUploading ? "wait" : "pointer",
-                          border:`1px solid ${C.border}`, background:C.card, borderRadius:4,
-                          fontSize:12.5, padding:"8px 12px", display:"inline-flex",
-                          alignItems:"center", gap:6, opacity: studioUploading ? .6 : 1 }}>
-                          <Upload size={13}/>
-                          {studioUploading ? "Uploading…" : studioPhotoUrl ? "Replace photo" : "Upload photo"}
-                          <input type="file" accept="image/*" hidden disabled={studioUploading}
-                            onChange={e=>{
-                              const f = e.target.files?.[0];
-                              e.target.value = "";
-                              if (f) uploadStudioPhoto(f);
-                            }}/>
+                  {IMAGE_FIELDS.map(({ key, label, hint, ratio }) => {
+                    const url = images[key];
+                    const busy = uploadingKey === key;
+                    return (
+                      <div key={key}>
+                        <label style={{ display:"block", fontSize:12, fontWeight:600, color:"#3b4a42", marginBottom:8 }}>
+                          {label}
                         </label>
-                        {studioPhotoUrl && (
-                          <button onClick={removeStudioPhoto}
-                            style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
-                              color:C.red, fontSize:12, padding:"7px 12px", borderRadius:4, justifySelf:"start" }}>
-                            Remove
-                          </button>
-                        )}
-                        <span style={{ fontSize:11.5, color:C.faint, maxWidth:230, lineHeight:1.5 }}>
-                          Shown beside the story section on the homepage. Portrait 4:5 works best.
-                        </span>
+                        <div style={{ display:"flex", gap:14, alignItems:"flex-start", flexWrap:"wrap" }}>
+                          <div style={{ width:96, aspectRatio:ratio, flexShrink:0, borderRadius:4,
+                            border:`1px solid ${C.border}`, overflow:"hidden", background:C.thead,
+                            display:"flex", alignItems:"center", justifyContent:"center" }}>
+                            {url ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={url} alt={label}
+                                style={{ width:"100%", height:"100%", objectFit:"cover" }}/>
+                            ) : (
+                              <span style={{ fontSize:10.5, color:C.faint, textAlign:"center", padding:6 }}>
+                                No image
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display:"grid", gap:8 }}>
+                            <label style={{ cursor: busy ? "wait" : "pointer",
+                              border:`1px solid ${C.border}`, background:C.card, borderRadius:4,
+                              fontSize:12.5, padding:"8px 12px", display:"inline-flex",
+                              alignItems:"center", gap:6, opacity: busy ? .6 : 1 }}>
+                              <Upload size={13}/>
+                              {busy ? "Uploading…" : url ? "Replace" : "Upload"}
+                              <input type="file" accept="image/*" hidden disabled={busy}
+                                onChange={e=>{
+                                  const f = e.target.files?.[0];
+                                  e.target.value = "";
+                                  if (f) uploadImage(key, f);
+                                }}/>
+                            </label>
+                            {url && (
+                              <button onClick={()=>removeImage(key)}
+                                style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
+                                  color:C.red, fontSize:12, padding:"7px 12px", borderRadius:4, justifySelf:"start" }}>
+                                Remove
+                              </button>
+                            )}
+                            <span style={{ fontSize:11.5, color:C.faint, maxWidth:230, lineHeight:1.5 }}>
+                              {hint}
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
+                    );
+                  })}
 
                   <button onClick={saveHomepage}
                     style={{ cursor:"pointer", justifySelf:"start", border:"none", background:C.dark,
