@@ -11,8 +11,14 @@ model Product {
   slug       String         @unique
   title      String
   tamil      String
-  tag        String
+  /// Optional so deleting a tag untags its posters instead of deleting them.
+  tagId      Int?
+  tag        Tag?           @relation(fields: [tagId], references: [id], onDelete: SetNull)
+  /// Price of the A4 print. A3/A2 are held in priceA3 / priceA2 so the
+  /// admin can set each size independently instead of a fixed upcharge.
   base       Int
+  priceA3    Int
+  priceA2    Int
   sub        String
   active     Boolean        @default(true)
   createdAt  DateTime       @default(now())
@@ -22,6 +28,20 @@ model Product {
   images     ProductImage[]
 
   @@index([active])
+  @@index([tagId])
+}
+
+/// Storefront filter chips (SIGNBOARD, OORU, SLANG, ...), editable from /minad.
+/// A row per tag rather than a string on Product, so renaming one relabels
+/// every poster carrying it instead of orphaning them.
+model Tag {
+  id        Int       @id @default(autoincrement())
+  label     String    @unique
+  position  Int       @default(0)
+  createdAt DateTime  @default(now())
+  products  Product[]
+
+  @@index([position])
 }
 
 model ProductImage {

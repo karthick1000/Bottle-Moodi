@@ -20,12 +20,15 @@ export const createOrderSchema = z.object({
       z.object({
         productId: z.number().int().positive(),
         size: z.string().min(1),
-        amount: z.number().int().positive(),
+        // Still accepted because clients send it, but the route ignores it and
+        // reprices from the DB. Money never comes off the wire.
+        amount: z.number().int().positive().optional(),
       })
     )
     .min(1),
   address: deliveryAddressSchema,
   discountCode: z.string().optional(),
+  // Likewise advisory: the real figure is revalidated server-side.
   discountAmount: z.number().int().nonnegative().optional(),
 });
 
@@ -41,8 +44,10 @@ export const createProductSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
   tamil: z.string().min(1),
-  tag: z.string().min(1),
+  tagId: z.number().int().positive().nullable().optional(),
   base: z.number().int().positive(),
+  priceA3: z.number().int().positive().optional(),
+  priceA2: z.number().int().positive().optional(),
   sub: z.string().min(1),
   active: z.boolean().optional(),
 });
@@ -51,10 +56,22 @@ export const updateProductSchema = z.object({
   slug: z.string().min(1).optional(),
   title: z.string().min(1).optional(),
   tamil: z.string().min(1).optional(),
-  tag: z.string().min(1).optional(),
+  tagId: z.number().int().positive().nullable().optional(),
   base: z.number().int().positive().optional(),
+  priceA3: z.number().int().positive().optional(),
+  priceA2: z.number().int().positive().optional(),
   sub: z.string().min(1).optional(),
   active: z.boolean().optional(),
+});
+
+/** Tag labels are chips in a single scrolling row — keep them short. */
+export const createTagSchema = z.object({
+  label: z.string().trim().min(1).max(24),
+});
+
+export const updateTagSchema = z.object({
+  label: z.string().trim().min(1).max(24).optional(),
+  position: z.number().int().nonnegative().optional(),
 });
 
 export const validateDiscountSchema = z.object({

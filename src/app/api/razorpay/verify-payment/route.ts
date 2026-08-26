@@ -4,10 +4,10 @@ import { z } from "zod";
 import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
 import { prisma } from "@/lib/prisma";
 import { clearUserCart } from "@/lib/db/cart";
-import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
+import { incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { deliveryAddressSchema } from "@/lib/validators";
-import { SHIPPING, SIZE_UPCHARGE, type Size } from "@/lib/data";
+import { quoteOrder, quoteToOrderItems, UnavailableProductError } from "@/lib/db/quote";
 
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
@@ -21,7 +21,8 @@ const verifyPaymentSchema = z.object({
       z.object({
         productId: z.number().int().positive(),
         size:      z.string().min(1),
-        amount:    z.number().int().positive(),
+        // Accepted but ignored — the cart is repriced from the DB below.
+        amount:    z.number().int().positive().optional(),
       })
     )
     .min(1),
@@ -40,26 +41,14 @@ export async function POST(req: NextRequest) {
     const userId = await getAuthUserId(req);
     const body   = await parseBody(req, verifyPaymentSchema);
 
-    // ── 1. Fetch current prices from DB — never trust client-sent prices ──
-    const productIds = [...new Set(body.items.map((i) => i.productId))];
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds }, active: true },
-      select: { id: true, base: true },
-    });
-    if (products.length !== productIds.length) {
-      return jsonErr("One or more products are unavailable", 400);
+    // ── 1. Price the cart server-side ─────────────────────────────────────
+    let quote;
+    try {
+      quote = await quoteOrder(body.items, body.discountCode);
+    } catch (e) {
+      if (e instanceof UnavailableProductError) return jsonErr(e.message, 400);
+      throw e;
     }
-    const priceMap = new Map(products.map((p) => [p.id, p.base]));
-
-    const itemsWithPrice = body.items.map((i) => ({
-      productId: i.productId,
-      size:      i.size,
-      amount:    i.amount,
-      unitPrice: (priceMap.get(i.productId) ?? 0) + (SIZE_UPCHARGE[i.size as Size] ?? 0),
-    }));
-
-    // Subtotal from real prices × quantities
-    const subtotal = itemsWithPrice.reduce((s, i) => s + i.unitPrice * i.amount, 0);
 
     // ── 2. HMAC-SHA256 signature verification ─────────────────────────────
     // This is the only proof of a genuine Razorpay payment.
@@ -79,17 +68,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // ── 3. Re-validate discount server-side ────────────────────────────────
-    let resolvedDiscountAmount = body.discountAmount ?? 0;
-    let discountId: number | undefined;
-    if (body.discountCode) {
-      const validation = await validateDiscountCode(body.discountCode, subtotal);
-      if (validation.valid) {
-        resolvedDiscountAmount = validation.discountAmount;
-        discountId = validation.discountId;
-      } else {
-        resolvedDiscountAmount = 0;
-      }
+    // ── 3. The paid amount must be the amount we quote ────────────────────
+    // Prices or the delivery rule can change between create-order and here.
+    // Recording an order that doesn't match what was charged is worse than
+    // refusing it, so bail and let support reconcile against the payment id.
+    const expectedPaise = quote.total * 100;
+    if (body.amountPaise !== expectedPaise) {
+      console.error(
+        `[razorpay verify] AMOUNT MISMATCH userId=${userId} paymentId=${body.razorpayPaymentId} ` +
+        `paid=${body.amountPaise} expected=${expectedPaise}`
+      );
+      return jsonErr(
+        "Prices changed while you were paying, so we have not placed this order. " +
+        "Nothing further will be charged — contact support with your payment ID and we will sort it out.",
+        409
+      );
     }
 
     // ── 4. Atomically create Payment + Address + Order ─────────────────────
@@ -120,12 +113,12 @@ export async function POST(req: NextRequest) {
         data: {
           clerkUserId:    userId,
           status:         "PAID",
-          shipping:       SHIPPING,
+          shipping:       quote.shipping,
           discountCode:   body.discountCode ?? null,
-          discountAmount: resolvedDiscountAmount,
+          discountAmount: quote.discountAmount,
           addressId:      address.id,
           paymentId:      payment.id,
-          items: { create: itemsWithPrice },
+          items: { create: quoteToOrderItems(quote) },
         },
         include: {
           items: {
@@ -140,8 +133,8 @@ export async function POST(req: NextRequest) {
     // ── 5. Post-transaction side effects (non-fatal) ───────────────────────
     await clearUserCart(userId);
 
-    if (body.discountCode && discountId != null) {
-      await incrementUsedCount(discountId);
+    if (quote.discountId != null) {
+      await incrementUsedCount(quote.discountId);
     }
 
     console.log(

@@ -11,10 +11,25 @@ import { Plus, Upload, Archive, RotateCcw, Menu, X } from "lucide-react";
 // ── Types ──────────────────────────────────────────────────────────────────
 
 interface ProductImage { id: number; url: string; position: number; }
+interface Tag { id: number; label: string; position: number; }
 interface Product {
   id: number; slug: string; title: string; tamil: string;
-  tag: string; base: number; sub: string; active: boolean; images: ProductImage[];
+  tag: Tag | null; base: number; priceA3: number; priceA2: number;
+  sub: string; active: boolean; images: ProductImage[];
 }
+/** Product fields the admin table edits as integers rather than free text. */
+const NUMERIC_PRODUCT_FIELDS = ["base", "priceA3", "priceA2"] as const;
+
+/** Price columns, in the order the sizes appear on the storefront. */
+const PRICE_FIELDS = [
+  ["base",    "A4"],
+  ["priceA3", "A3"],
+  ["priceA2", "A2"],
+] as const;
+
+/** Shared grid track list for the products table header and its rows. */
+const PRODUCT_COLS = "56px 1.4fr 1fr 1.8fr 108px 66px 66px 66px 74px 112px";
+
 interface DbOrder {
   id: number; clerkUserId: string; status: string; shipping: number; createdAt: string;
   items: { id: number; size: string; amount: number; product: { title: string; tamil: string } }[];
@@ -201,9 +216,9 @@ async function apiSend(url: string, method: string, body?: unknown) {
   return data;
 }
 
-type Tab = "dash"|"products"|"orders"|"discounts"|"homepage";
+type Tab = "dash"|"products"|"tags"|"orders"|"discounts"|"homepage";
 const TABS: [Tab, string][] = [
-  ["dash","Dashboard"],["products","Products"],["orders","Orders"],
+  ["dash","Dashboard"],["products","Products"],["tags","Tags"],["orders","Orders"],
   ["discounts","Discounts"],["homepage","Homepage"],
 ];
 
@@ -220,6 +235,9 @@ export default function AdminPage() {
   const [products,        setProducts]        = useState<Product[]>([]);
   const [productsError,   setProductsError]   = useState("");
   const [productsLoading, setProductsLoading] = useState(true);
+  const [tags,            setTags]            = useState<Tag[]>([]);
+  const [tagsLoading,     setTagsLoading]     = useState(true);
+  const [newTag,          setNewTag]          = useState("");
   const [orders,          setOrders]          = useState<Order[]>([]);
   const [ordersLoading,   setOrdersLoading]   = useState(true);
   const [codes,           setCodes]           = useState<DiscountCode[]>([]);
@@ -237,6 +255,9 @@ export default function AdminPage() {
   const [headline, setHeadline] = useState("NORMAL IS NOT OUR SIZE");
   const [strip,    setStrip]    = useState("NOW SHOWING · POSTERS · CHENNAI");
   const [featured, setFeatured] = useState<number[]>([]);
+  // Delivery rule, held as strings so the inputs can be cleared mid-edit.
+  const [shipFee,   setShipFee]   = useState("79");
+  const [shipFree,  setShipFree]  = useState("999");
   // Homepage imagery, keyed by the SiteSetting key each one persists to.
   const [images, setImages] = useState<Record<ImageKey, string>>({
     studioPhotoUrl: "", teeMockupUrl: "", toteMockupUrl: "",
@@ -299,6 +320,15 @@ export default function AdminPage() {
       .finally(() => setProductsLoading(false));
   }, []);
 
+  // Fetch tags from DB
+  useEffect(() => {
+    fetch("/api/admin/tags", { cache: "no-store" })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: Tag[] | null) => { if (Array.isArray(data)) setTags(data); })
+      .catch(() => {})
+      .finally(() => setTagsLoading(false));
+  }, []);
+
   // Fetch orders from DB
   useEffect(() => {
     fetch("/api/admin/orders")
@@ -328,6 +358,8 @@ export default function AdminPage() {
         if (typeof s.tagline  === "string") setTagline(s.tagline);
         if (typeof s.headline === "string") setHeadline(s.headline);
         if (typeof s.strip    === "string") setStrip(s.strip);
+        if (typeof s.shippingFee       === "string") setShipFee(s.shippingFee);
+        if (typeof s.freeShippingAbove === "string") setShipFree(s.freeShippingAbove);
         setImages({
           studioPhotoUrl: typeof s.studioPhotoUrl === "string" ? s.studioPhotoUrl : "",
           teeMockupUrl:   typeof s.teeMockupUrl   === "string" ? s.teeMockupUrl   : "",
@@ -349,6 +381,111 @@ export default function AdminPage() {
       flash("Homepage saved");
     } catch (e) {
       flash(`Save failed — ${(e as Error).message}`);
+    }
+  };
+
+  const saveDelivery = async () => {
+    try {
+      await apiSend("/api/admin/settings", "PUT", {
+        shippingFee:       String(parseInt(shipFee,  10) || 0),
+        freeShippingAbove: String(parseInt(shipFree, 10) || 0),
+      });
+      flash("Delivery saved");
+    } catch (e) {
+      flash(`Save failed — ${(e as Error).message}`);
+    }
+  };
+
+  // ── Tags ───────────────────────────────────────────────────────────────
+
+  const addTag = async () => {
+    const label = newTag.trim().toUpperCase();
+    if (!label) return;
+    try {
+      const tag: Tag = await apiSend("/api/admin/tags", "POST", { label });
+      setTags(ts => [...ts, tag]);
+      setNewTag("");
+      flash("Tag added");
+    } catch (e) {
+      flash(`Add failed — ${(e as Error).message}`);
+    }
+  };
+
+  /**
+   * Renaming is debounced like the product fields, and the new label is echoed
+   * onto every product carrying the tag so the Products tab doesn't go stale.
+   */
+  const renameTag = (id: number) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const label = e.target.value;
+    setTags(ts => ts.map(t => t.id===id ? {...t, label} : t));
+    setProducts(ps => ps.map(p => p.tag?.id===id ? {...p, tag:{...p.tag, label}} : p));
+
+    const timerKey = `tag:${id}`;
+    clearTimeout(saveTimers.current[timerKey]);
+    saveTimers.current[timerKey] = setTimeout(() => {
+      const trimmed = label.trim().toUpperCase();
+      if (!trimmed) { flash("Tag name cannot be empty"); return; }
+      apiSend(`/api/admin/tags/${id}`, "PUT", { label: trimmed })
+        .then(() => flash("Saved"))
+        .catch((err: Error) => flash(`Save failed — ${err.message}`));
+    }, 600);
+  };
+
+  const moveTag = async (id: number, delta: number) => {
+    const i = tags.findIndex(t => t.id === id);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= tags.length) return;
+
+    const reordered = [...tags];
+    [reordered[i], reordered[j]] = [reordered[j], reordered[i]];
+    // Renumber from zero so positions stay dense no matter what was stored.
+    const renumbered = reordered.map((t, k) => ({ ...t, position: k }));
+    setTags(renumbered);
+
+    try {
+      // Only the two that actually moved need writing.
+      await Promise.all(
+        [renumbered[i], renumbered[j]].map(t =>
+          apiSend(`/api/admin/tags/${t.id}`, "PUT", { position: t.position })
+        )
+      );
+      flash("Reordered");
+    } catch (e) {
+      setTags(tags); // put the old order back rather than lie about it
+      flash(`Reorder failed — ${(e as Error).message}`);
+    }
+  };
+
+  const removeTag = async (id: number) => {
+    const inUse = products.filter(p => p.tag?.id === id).length;
+    const warning = inUse > 0
+      ? `Delete this tag? ${inUse} poster${inUse>1?"s":""} will be left untagged (the posters themselves are kept).`
+      : "Delete this tag?";
+    if (!confirm(warning)) return;
+    try {
+      await apiSend(`/api/admin/tags/${id}`, "DELETE");
+      setTags(ts => ts.filter(t => t.id !== id));
+      setProducts(ps => ps.map(p => p.tag?.id===id ? {...p, tag:null} : p));
+      flash("Tag deleted");
+    } catch (e) {
+      flash(`Delete failed — ${(e as Error).message}`);
+    }
+  };
+
+  /** Assigns (or clears) a poster's tag. Written immediately — it's a select, not typing. */
+  const setProductTag = (id: number) => async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const raw = e.target.value;
+    const tagId = raw === "" ? null : parseInt(raw, 10);
+    const tag = tagId === null ? null : tags.find(t => t.id === tagId) ?? null;
+    const previous = products.find(p => p.id === id)?.tag ?? null;
+
+    setProducts(ps => ps.map(p => p.id===id ? {...p, tag} : p));
+    try {
+      await apiSend(`/api/admin/products/${id}`, "PUT", { tagId });
+      flash("Saved");
+    } catch (err) {
+      setProducts(ps => ps.map(p => p.id===id ? {...p, tag:previous} : p));
+      flash(`Save failed — ${(err as Error).message}`);
     }
   };
 
@@ -385,7 +522,9 @@ export default function AdminPage() {
   const editProduct = (id: number, key: keyof Product) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
-      const v = (key==="base") ? (parseInt(raw.replace(/\D/g,""),10)||0) : raw;
+      const v = NUMERIC_PRODUCT_FIELDS.includes(key as typeof NUMERIC_PRODUCT_FIELDS[number])
+        ? (parseInt(raw.replace(/\D/g,""),10)||0)
+        : raw;
       setProducts(ps => ps.map(p => p.id===id ? {...p,[key]:v} : p));
 
       // Debounce the write. Firing a PUT per keystroke lets responses land out
@@ -641,7 +780,7 @@ export default function AdminPage() {
                     fetch("/api/admin/products", {
                       method:"POST",
                       headers:{"Content-Type":"application/json"},
-                      body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",base:499,sub:"New product description",active:false}),
+                      body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tagId:tags[0]?.id ?? null,base:499,priceA3:649,priceA2:849,sub:"New product description",active:false}),
                     }).then(async r=>{
                       const p = await r.json().catch(()=>null);
                       if (!r.ok || !p?.id) throw new Error(p?.error ?? `HTTP ${r.status}`);
@@ -657,19 +796,23 @@ export default function AdminPage() {
               </div>
 
               <div className="bm-table-wrap">
-                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:720 }}>
-                  <div style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
+                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:1120 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:PRODUCT_COLS,
                     gap:10, padding:"10px 14px", background:C.thead, borderBottom:`1px solid ${C.border}`,
                     fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
-                    <span>ART</span><span>TITLE</span><span>TAMIL</span>
-                    <span>PRICE</span><span>STATUS</span><span>ACTIONS</span>
+                    <span>ART</span><span>TITLE</span><span>TAMIL</span><span>DESCRIPTION</span>
+                    <span>TAG</span>
+                    {PRICE_FIELDS.map(([key,label]) => (
+                      <span key={key} title={`Price for the ${label} print`}>₹ {label}</span>
+                    ))}
+                    <span>STATUS</span><span>ACTIONS</span>
                   </div>
                   {products.length === 0 && !productsError && (
                     <EmptyState text="No products yet — create one with New product."/>
                   )}
                   {products.map(p => (
                     <div key={p.id}
-                      style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
+                      style={{ display:"grid", gridTemplateColumns:PRODUCT_COLS,
                         gap:10, padding:"10px 14px", borderBottom:`1px solid ${C.rowBorder}`,
                         alignItems:"center", fontSize:13.5, opacity: p.active ? 1 : 0.55 }}>
                       <div>
@@ -697,13 +840,30 @@ export default function AdminPage() {
                           </button>
                         </div>
                       </div>
-                      {(["title","tamil","base"] as const).map(key => (
-                        <input key={key} value={String(p[key])} onChange={editProduct(p.id,key)}
+                      {(["title","tamil","sub"] as const).map(key => (
+                        <input key={key} value={p[key]} onChange={editProduct(p.id,key)}
+                          placeholder={key==="sub" ? "Poster description" : undefined}
+                          title={key==="sub" ? p.sub : undefined}
                           style={{ border:"1px solid transparent", borderRadius:3, padding:"6px 7px",
                             fontSize:13, background:"transparent", outline:"none", width:"100%",
                             boxSizing:"border-box",
-                            fontFamily: key==="tamil" ? "var(--font-anek)" : "inherit",
-                            fontVariantNumeric: key==="base" ? "tabular-nums" : "normal" }}
+                            fontFamily: key==="tamil" ? "var(--font-anek)" : "inherit" }}
+                          onFocus={fo} onBlur={fb}/>
+                      ))}
+                      <select value={p.tag?.id ?? ""} onChange={setProductTag(p.id)}
+                        aria-label="Tag"
+                        style={{ border:`1px solid ${C.border}`, borderRadius:3, padding:"6px 5px",
+                          fontSize:12, background:C.card, outline:"none", cursor:"pointer",
+                          width:"100%", boxSizing:"border-box" }}>
+                        <option value="">— none —</option>
+                        {tags.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                      </select>
+                      {PRICE_FIELDS.map(([key,label]) => (
+                        <input key={key} value={String(p[key])} onChange={editProduct(p.id,key)}
+                          inputMode="numeric" aria-label={`${label} price`}
+                          style={{ border:"1px solid transparent", borderRadius:3, padding:"6px 7px",
+                            fontSize:13, background:"transparent", outline:"none", width:"100%",
+                            boxSizing:"border-box", fontVariantNumeric:"tabular-nums" }}
                           onFocus={fo} onBlur={fb}/>
                       ))}
                       <span style={{ fontSize:11, fontWeight:600,
@@ -747,7 +907,142 @@ export default function AdminPage() {
               </div>
             </>}
 
+            {/* ══ TAGS ══ */}
+            {tab==="tags" && tagsLoading && <AdminLoader label="Loading tags"/>}
+            {tab==="tags" && !tagsLoading && <>
+              <div style={{ fontSize:13, color:C.muted, margin:"18px 0 12px" }}>
+                The filter chips on the shop page, in the order they appear there.
+                Renaming one relabels every poster carrying it.
+              </div>
+
+              <div style={{ display:"flex", gap:10, marginBottom:16, flexWrap:"wrap" }}>
+                <input value={newTag}
+                  onChange={e=>setNewTag(e.target.value.toUpperCase())}
+                  onKeyDown={e=>{ if(e.key==="Enter") addTag(); }}
+                  placeholder="NEW TAG" maxLength={24}
+                  style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"9px 12px",
+                    fontSize:13, outline:"none", width:200, background:C.card,
+                    textTransform:"uppercase" }}/>
+                <button onClick={addTag} disabled={!newTag.trim()}
+                  style={{ cursor: newTag.trim() ? "pointer" : "not-allowed", border:"none",
+                    background:C.dark, color:C.card, fontSize:13, fontWeight:600,
+                    padding:"9px 14px", borderRadius:4, opacity: newTag.trim() ? 1 : .5,
+                    display:"flex", alignItems:"center", gap:6 }}>
+                  <Plus size={13}/> Add tag
+                </button>
+              </div>
+
+              <div className="bm-table-wrap">
+                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6,
+                  overflow:"hidden", minWidth:560, maxWidth:760 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:"48px 1fr 110px 90px 90px",
+                    gap:10, padding:"10px 14px", background:C.thead, borderBottom:`1px solid ${C.border}`,
+                    fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
+                    <span>ORDER</span><span>LABEL</span><span>POSTERS</span><span>MOVE</span><span>ACTIONS</span>
+                  </div>
+                  {tags.length === 0 && (
+                    <EmptyState text="No tags yet — add one above to start filtering the shop."/>
+                  )}
+                  {tags.map((t,i) => {
+                    const inUse = products.filter(p => p.tag?.id === t.id).length;
+                    return (
+                      <div key={t.id}
+                        style={{ display:"grid", gridTemplateColumns:"48px 1fr 110px 90px 90px",
+                          gap:10, padding:"10px 14px", borderBottom:`1px solid ${C.rowBorder}`,
+                          alignItems:"center", fontSize:13.5 }}>
+                        <span style={{ fontSize:12, color:C.faint, fontVariantNumeric:"tabular-nums" }}>
+                          {i+1}
+                        </span>
+                        <input value={t.label} onChange={renameTag(t.id)} maxLength={24}
+                          style={{ border:"1px solid transparent", borderRadius:3, padding:"6px 7px",
+                            fontSize:13, background:"transparent", outline:"none", width:"100%",
+                            boxSizing:"border-box", textTransform:"uppercase" }}
+                          onFocus={fo} onBlur={fb}/>
+                        <span style={{ fontSize:12, color: inUse ? C.muted : C.faint }}>
+                          {productsLoading
+                            ? "…"
+                            : inUse === 0 ? "unused" : `${inUse} poster${inUse>1?"s":""}`}
+                        </span>
+                        <div style={{ display:"flex", gap:4 }}>
+                          <button onClick={()=>moveTag(t.id,-1)} disabled={i===0} title="Move up"
+                            style={{ cursor: i===0 ? "not-allowed" : "pointer", border:`1px solid ${C.border}`,
+                              background:C.card, borderRadius:4, fontSize:12, padding:"4px 8px",
+                              opacity: i===0 ? .4 : 1 }}>↑</button>
+                          <button onClick={()=>moveTag(t.id,1)} disabled={i===tags.length-1} title="Move down"
+                            style={{ cursor: i===tags.length-1 ? "not-allowed" : "pointer",
+                              border:`1px solid ${C.border}`, background:C.card, borderRadius:4,
+                              fontSize:12, padding:"4px 8px", opacity: i===tags.length-1 ? .4 : 1 }}>↓</button>
+                        </div>
+                        <button onClick={()=>removeTag(t.id)}
+                          style={{ cursor:"pointer", border:`1px solid ${C.red}`, background:"transparent",
+                            color:C.red, fontSize:11.5, padding:"5px 9px", borderRadius:4,
+                            justifySelf:"start" }}>
+                          Delete
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div style={{ fontSize:12, color:C.faint, marginTop:10 }}>
+                Deleting a tag leaves its posters untagged — it never deletes a poster.
+                A tag with no posters is hidden from the shop filter.
+              </div>
+            </>}
+
             {/* ══ ORDERS ══ */}
+            {tab==="orders" && !settingsLoading && (
+              <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6,
+                padding:18, marginTop:20, maxWidth:620 }}>
+                <div style={{ fontSize:12, fontWeight:600, color:C.muted,
+                  letterSpacing:".04em", marginBottom:4 }}>
+                  DELIVERY
+                </div>
+                <div style={{ fontSize:12.5, color:C.faint, marginBottom:14, lineHeight:1.55 }}>
+                  Charged on every order whose items come to less than the free-delivery
+                  threshold. The cart, checkout and the order itself all use this — it is
+                  applied on the server, so changing it here changes what customers pay.
+                </div>
+
+                <div style={{ display:"flex", gap:14, flexWrap:"wrap", alignItems:"flex-end" }}>
+                  <label style={{ display:"grid", gap:5 }}>
+                    <span style={{ fontSize:11, fontWeight:600, letterSpacing:".05em", color:C.muted }}>
+                      DELIVERY FEE (₹)
+                    </span>
+                    <input value={shipFee} inputMode="numeric"
+                      onChange={e=>setShipFee(e.target.value.replace(/\D/g,"").slice(0,5))}
+                      style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"9px 12px",
+                        fontSize:13, outline:"none", width:130, background:C.card,
+                        fontVariantNumeric:"tabular-nums" }}/>
+                  </label>
+                  <label style={{ display:"grid", gap:5 }}>
+                    <span style={{ fontSize:11, fontWeight:600, letterSpacing:".05em", color:C.muted }}>
+                      FREE DELIVERY AT OR ABOVE (₹)
+                    </span>
+                    <input value={shipFree} inputMode="numeric"
+                      onChange={e=>setShipFree(e.target.value.replace(/\D/g,"").slice(0,7))}
+                      style={{ border:`1px solid ${C.border}`, borderRadius:4, padding:"9px 12px",
+                        fontSize:13, outline:"none", width:190, background:C.card,
+                        fontVariantNumeric:"tabular-nums" }}/>
+                  </label>
+                  <button onClick={saveDelivery}
+                    style={{ cursor:"pointer", border:"none", background:C.dark, color:C.card,
+                      fontSize:13, fontWeight:600, padding:"10px 18px", borderRadius:4 }}>
+                    Save
+                  </button>
+                </div>
+
+                <div style={{ fontSize:12, color:C.muted, marginTop:12, lineHeight:1.55 }}>
+                  {(() => {
+                    const fee  = parseInt(shipFee,  10) || 0;
+                    const free = parseInt(shipFree, 10) || 0;
+                    if (free === 0)  return "Right now: delivery is free on every order.";
+                    if (fee === 0)   return "Right now: delivery is free on every order (the fee is ₹0).";
+                    return `Right now: orders under ₹${free.toLocaleString("en-IN")} pay ₹${fee.toLocaleString("en-IN")} delivery. At ₹${free.toLocaleString("en-IN")} and above it is free.`;
+                  })()}
+                </div>
+              </div>
+            )}
             {tab==="orders" && ordersLoading && <AdminLoader label="Loading orders"/>}
             {tab==="orders" && !ordersLoading && (
               <div className="bm-table-wrap" style={{ marginTop:20 }}>

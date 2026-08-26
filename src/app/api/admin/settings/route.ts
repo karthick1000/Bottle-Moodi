@@ -15,6 +15,10 @@ const settingsSchema = z.object({
   studioPhotoUrl: imageUrl,
   teeMockupUrl:   imageUrl,
   toteMockupUrl:  imageUrl,
+  // Delivery, stored as strings. Bounded so a typo can't set a five-figure
+  // fee, and non-negative so it can't credit the customer.
+  shippingFee:       z.string().regex(/^\d{1,5}$/).optional(),
+  freeShippingAbove: z.string().regex(/^\d{1,7}$/).optional(),
 });
 
 export async function GET(req: NextRequest) {

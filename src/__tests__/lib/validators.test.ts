@@ -36,10 +36,26 @@ describe('addCartItemSchema', () => {
 
 describe('createOrderSchema', () => {
   const validItem = { productId: 1, size: 'A4', amount: 499 };
+  const validAddress = {
+    name: 'Karthick', phone: '9876543210', line1: '12 Anna Salai',
+    city: 'Chennai', pincode: '600002',
+  };
 
   it('accepts valid input', () => {
-    const result = createOrderSchema.parse({ items: [validItem] });
+    const result = createOrderSchema.parse({ items: [validItem], address: validAddress });
     expect(result.items).toHaveLength(1);
+  });
+
+  it('accepts an item with no price — the route reprices from the DB', () => {
+    const result = createOrderSchema.parse({
+      items: [{ productId: 1, size: 'A4' }],
+      address: validAddress,
+    });
+    expect(result.items[0].amount).toBeUndefined();
+  });
+
+  it('rejects input with no address', () => {
+    expect(() => createOrderSchema.parse({ items: [validItem] })).toThrow();
   });
 
   it('rejects empty items array', () => {
@@ -100,7 +116,7 @@ describe('updateOrderStatusSchema', () => {
 });
 
 describe('createProductSchema', () => {
-  const valid = { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tag: 'SIGNBOARD', base: 499, sub: 'For the auto ride.' };
+  const valid = { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tagId: 1, base: 499, sub: 'For the auto ride.' };
 
   it('accepts valid input', () => {
     expect(createProductSchema.parse(valid)).toMatchObject(valid);
@@ -226,10 +242,15 @@ describe('updateDiscountCodeSchema', () => {
 
 describe('createOrderSchema with discount fields', () => {
   const validItem = { productId: 1, size: 'A4', amount: 499 };
+  const validAddress = {
+    name: 'Karthick', phone: '9876543210', line1: '12 Anna Salai',
+    city: 'Chennai', pincode: '600002',
+  };
 
   it('accepts discountCode and discountAmount', () => {
     const result = createOrderSchema.parse({
       items: [validItem],
+      address: validAddress,
       discountCode: 'SAVE10',
       discountAmount: 50,
     });
@@ -238,7 +259,7 @@ describe('createOrderSchema with discount fields', () => {
   });
 
   it('accepts without discount fields', () => {
-    const result = createOrderSchema.parse({ items: [validItem] });
+    const result = createOrderSchema.parse({ items: [validItem], address: validAddress });
     expect(result.discountCode).toBeUndefined();
     expect(result.discountAmount).toBeUndefined();
   });

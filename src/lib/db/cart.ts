@@ -1,13 +1,33 @@
 import { prisma } from "@/lib/prisma";
+import { priceFor, type Size } from "@/lib/data";
 
+/**
+ * A signed-in user's cart, repriced at read time.
+ *
+ * CartItem.amount is whatever the price was when the row was written, which
+ * goes stale the moment the admin edits a poster. Returning the stored figure
+ * showed customers a price checkout would not honour, so the current one is
+ * substituted on the way out.
+ */
 export async function getUserCart(clerkUserId: string) {
-  return prisma.cartItem.findMany({
+  const rows = await prisma.cartItem.findMany({
     where: { clerkUserId },
     include: {
-      product: { select: { slug: true, title: true, tamil: true } },
+      product: {
+        select: {
+          slug: true, title: true, tamil: true,
+          base: true, priceA3: true, priceA2: true,
+        },
+      },
     },
     orderBy: { createdAt: "asc" },
   });
+
+  return rows.map(({ product, ...row }) => ({
+    ...row,
+    amount: priceFor(product, row.size as Size),
+    product: { slug: product.slug, title: product.title, tamil: product.tamil },
+  }));
 }
 
 export async function addOrUpdateCartItem(

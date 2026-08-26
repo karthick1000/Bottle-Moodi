@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { SIZES, SIZE_UPCHARGE, money, type Size } from "@/lib/data";
+import { SIZES, money, priceFor, type Size } from "@/lib/data";
 import { useCartStore } from "@/lib/store";
 import { useAuth } from "@clerk/nextjs";
 import { AddedToast } from "@/components/AddedToast";
@@ -19,7 +19,7 @@ export function ProductDetail({ product }: Props) {
   const { addItem, openCart } = useCartStore();
   const { isSignedIn } = useAuth();
 
-  const price = product.base + SIZE_UPCHARGE[size];
+  const price = priceFor(product, size);
 
   const handleAdd = async () => {
     addItem({
@@ -27,7 +27,7 @@ export function ProductDetail({ product }: Props) {
       title: product.title,
       tamil: product.tamil,
       size,
-      base: product.base,
+      amount: price,
     });
     setToast(`${product.title} · ${size}`);
     openCart();
@@ -88,7 +88,7 @@ export function ProductDetail({ product }: Props) {
         {/* Details */}
         <div className="pt-1">
           <span className="font-bakbak text-[11px] md:text-[12px] tracking-[.24em] text-[#e8452c]">
-            {product.tag}
+            {product.tag?.label ?? "POSTER"}
           </span>
           <h1
             className="mt-3 font-bakbak leading-[1.02]"
