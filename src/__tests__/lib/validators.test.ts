@@ -100,7 +100,7 @@ describe('updateOrderStatusSchema', () => {
 });
 
 describe('createProductSchema', () => {
-  const valid = { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tag: 'SIGNBOARD', base: 499, sub: 'For the auto ride.' };
+  const valid = { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tagId: 1, base: 499, sub: 'For the auto ride.' };
 
   it('accepts valid input', () => {
     expect(createProductSchema.parse(valid)).toMatchObject(valid);

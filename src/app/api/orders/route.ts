@@ -8,7 +8,8 @@ import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { priceFor, type Size } from "@/lib/data";
+import { priceFor, shippingFor, type Size } from "@/lib/data";
+import { getShippingRule } from "@/lib/db/settings";
 
 export async function GET(req: NextRequest) {
   try {
@@ -122,11 +123,15 @@ export async function POST(req: NextRequest) {
       pincode: body.address.pincode,
     });
 
+    // Delivery is resolved server-side from the admin's rule for the same
+    // reason prices are: the client's number is a display value, not an input.
+    const shipping = shippingFor(subtotal, await getShippingRule());
+
     const order = await createOrder(
       userId,
       itemsWithPrice,
       address.id,
-      undefined,
+      shipping,
       body.discountCode,
       resolvedDiscountAmount,
     );

@@ -10,7 +10,7 @@ import {
 
 const mockProduct = {
   id: 1, slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு',
-  tag: 'SIGNBOARD', base: 499, priceA3: 649, priceA2: 849, sub: 'Test sub.', active: true,
+  tag: { id: 1, label: 'SIGNBOARD', position: 0 }, base: 499, priceA3: 649, priceA2: 849, sub: 'Test sub.', active: true,
 };
 
 beforeEach(() => {
@@ -65,7 +65,7 @@ describe('getProductBySlug', () => {
 describe('createProduct', () => {
   it('creates and returns a product', async () => {
     vi.mocked(prisma.product.create).mockResolvedValue(mockProduct as never);
-    const data = { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tag: 'SIGNBOARD', base: 499, sub: 'Test.' };
+    const data = { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tagId: 1, base: 499, sub: 'Test.' };
     const result = await createProduct(data);
     expect(result).toEqual(mockProduct);
     expect(prisma.product.create).toHaveBeenCalledWith(
@@ -75,7 +75,7 @@ describe('createProduct', () => {
 
   it('seeds A3/A2 from the legacy upcharges when they are omitted', async () => {
     vi.mocked(prisma.product.create).mockResolvedValue(mockProduct as never);
-    await createProduct({ slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tag: 'SIGNBOARD', base: 499, sub: 'Test.' });
+    await createProduct({ slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tagId: 1, base: 499, sub: 'Test.' });
     expect(prisma.product.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ base: 499, priceA3: 649, priceA2: 849 }),
@@ -85,7 +85,7 @@ describe('createProduct', () => {
 
   it('keeps explicit per-size prices', async () => {
     vi.mocked(prisma.product.create).mockResolvedValue(mockProduct as never);
-    await createProduct({ slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tag: 'SIGNBOARD', base: 200, priceA3: 300, priceA2: 400, sub: 'Test.' });
+    await createProduct({ slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு', tagId: 1, base: 200, priceA3: 300, priceA2: 400, sub: 'Test.' });
     expect(prisma.product.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ base: 200, priceA3: 300, priceA2: 400 }),

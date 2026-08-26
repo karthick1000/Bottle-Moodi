@@ -7,7 +7,7 @@ const PRODUCT_SELECT = {
   slug: true,
   title: true,
   tamil: true,
-  tag: true,
+  tag: { select: { id: true, label: true, position: true } },
   base: true,
   priceA3: true,
   priceA2: true,
@@ -57,7 +57,7 @@ export async function createProduct(data: {
   slug: string;
   title: string;
   tamil: string;
-  tag: string;
+  tagId?: number | null;
   base: number;
   priceA3?: number;
   priceA2?: number;
@@ -84,7 +84,7 @@ export async function updateProduct(
     slug: string;
     title: string;
     tamil: string;
-    tag: string;
+    tagId: number | null;
     base: number;
     priceA3: number;
     priceA2: number;

@@ -4,12 +4,19 @@ export interface ProductImage {
   position: number;
 }
 
+export interface Tag {
+  id: number;
+  label: string;
+  position: number;
+}
+
 export interface Product {
   id: number;
   slug: string;
   title: string;
   tamil: string;
-  tag: string;
+  /** Null once the tag it carried is deleted. */
+  tag: Tag | null;
   /** Price of the A4 print. */
   base: number;
   priceA3: number;
@@ -44,9 +51,30 @@ export function priceFor(product: SizePricing, size: Size): number {
   return product.base;
 }
 
-export const SHIPPING = 79;
+/**
+ * Delivery defaults, used until the admin saves their own in /minad and as the
+ * first-paint value before the saved rule reaches the client.
+ */
+export const SHIPPING_DEFAULTS: ShippingRule = { fee: 79, freeAbove: 999 };
+
+export interface ShippingRule {
+  /** Flat delivery fee charged on orders below `freeAbove`. */
+  fee: number;
+  /** Subtotal at or above which delivery is free. 0 makes every order free. */
+  freeAbove: number;
+}
+
+/**
+ * Delivery charged on a cart subtotal. Compared against the subtotal *before*
+ * any discount code, so a code can never be what unlocks free delivery.
+ */
+export function shippingFor(subtotal: number, rule: ShippingRule): number {
+  if (subtotal <= 0) return 0;
+  return subtotal >= rule.freeAbove ? 0 : rule.fee;
+}
 
 export const money = (n: number) =>
   "₹" + n.toLocaleString("en-IN");
 
-export const TAGS_STATIC = ["SIGNBOARD", "OORU", "SLANG", "NOSTALGIA"] as const;
+/** Tags seeded into the Tag table on first migrate. Not read at runtime. */
+export const TAGS_SEED = ["SIGNBOARD", "OORU", "SLANG", "NOSTALGIA"] as const;
