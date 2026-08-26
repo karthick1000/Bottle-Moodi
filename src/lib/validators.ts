@@ -20,12 +20,15 @@ export const createOrderSchema = z.object({
       z.object({
         productId: z.number().int().positive(),
         size: z.string().min(1),
-        amount: z.number().int().positive(),
+        // Still accepted because clients send it, but the route ignores it and
+        // reprices from the DB. Money never comes off the wire.
+        amount: z.number().int().positive().optional(),
       })
     )
     .min(1),
   address: deliveryAddressSchema,
   discountCode: z.string().optional(),
+  // Likewise advisory: the real figure is revalidated server-side.
   discountAmount: z.number().int().nonnegative().optional(),
 });
 
