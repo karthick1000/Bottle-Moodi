@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useCartStore } from "@/lib/store";
 import { money } from "@/lib/data";
 import { useRouter } from "next/navigation";
@@ -84,7 +85,19 @@ export function CartSidebar() {
             <div className="flex flex-col gap-4">
               {items.map((item, i) => (
                 <div key={i} className="flex gap-3 items-center">
-                  <div className="w-[48px] h-[64px] md:w-[52px] md:h-[68px] flex-none hatch-light border border-[#d9cfb8] rounded-sm" />
+                  <div className="w-[48px] h-[64px] md:w-[52px] md:h-[68px] flex-none border border-[#d9cfb8] rounded-sm overflow-hidden relative">
+                    {item.image ? (
+                      <Image
+                        src={item.image}
+                        alt={item.title}
+                        fill
+                        sizes="52px"
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="hatch-light w-full h-full" />
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-bakbak text-[14px] md:text-[15px] truncate">{item.title}</div>
                     <div className="font-mono text-[10.5px] md:text-[11px] text-[#6e6455] mt-0.5">
