@@ -41,6 +41,8 @@ interface CartStore {
   openCart: () => void;
   closeCart: () => void;
   syncCartFromDb: (dbItems: DbCartItem[]) => void;
+  /** Rewrite line prices from a server quote. Returns true if anything moved. */
+  applyQuotePrices: (lines: { productId: number; size: string; unitPrice: number }[]) => boolean;
   subtotal: () => number;
   total: () => number;
   shippingCost: () => number;
@@ -95,6 +97,19 @@ export const useCartStore = create<CartStore>()(
           amount: d.amount,
         }));
         set({ items: synced });
+      },
+
+      applyQuotePrices: (lines) => {
+        const priced = new Map(lines.map((l) => [`${l.productId}:${l.size}`, l.unitPrice]));
+        let changed = false;
+        const items = get().items.map((item) => {
+          const fresh = priced.get(`${item.productId}:${item.size}`);
+          if (fresh === undefined || fresh === item.amount) return item;
+          changed = true;
+          return { ...item, amount: fresh };
+        });
+        if (changed) set({ items });
+        return changed;
       },
 
       subtotal: () => get().items.reduce((s, c) => s + c.amount, 0),

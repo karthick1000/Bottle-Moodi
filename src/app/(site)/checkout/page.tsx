@@ -83,7 +83,8 @@ type ToastState = { message: string; type: ToastKind } | null;
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, formattedSubtotal, formattedShipping, clearCart, subtotal, shippingCost } = useCartStore();
+  const { items, formattedSubtotal, formattedShipping, clearCart, subtotal, shippingCost,
+          applyQuotePrices } = useCartStore();
   const sub = subtotal();
 
   const [form, setForm] = useState({ name: "", phone: "", address: "", city: "", pincode: "" });
@@ -205,11 +206,15 @@ export default function CheckoutPage() {
         return;
       }
 
-      // 2. Create Razorpay order on the server (amount in paise)
+      // 2. Ask the server what this cart costs and open a payment for that.
+      //    The page sends the cart, never a price — see lib/db/quote.ts.
       const createRes = await fetch("/api/razorpay/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: total * 100 }),
+        body: JSON.stringify({
+          items: items.map((i) => ({ productId: i.productId, size: i.size })),
+          ...(discount > 0 && code ? { discountCode: code.toUpperCase() } : {}),
+        }),
       });
 
       if (!createRes.ok) {
@@ -218,9 +223,22 @@ export default function CheckoutPage() {
         return;
       }
 
-      const { id: razorpayOrderId, amount: rzpAmount, currency } = await createRes.json();
+      const { id: razorpayOrderId, amount: rzpAmount, currency, quote } = await createRes.json();
 
-      // 3. Open Razorpay modal — wait for success or dismiss
+      // 3. Never open a modal for a figure the customer has not seen. If the
+      //    catalogue moved under them, show the new prices and let them decide.
+      if (quote && quote.total !== total) {
+        applyQuotePrices(quote.lines ?? []);
+        setDiscount(quote.discountAmount ?? 0);
+        showToast(
+          `Prices changed while you were checking out — this order is now ${money(quote.total)}. ` +
+          "Nothing has been charged. Review the updated total and pay again.",
+          "info"
+        );
+        return;
+      }
+
+      // 4. Open Razorpay modal — wait for success or dismiss
       const paymentResult = await new Promise<RazorpayPaymentResult>((resolve, reject) => {
         const rzp = new window.Razorpay({
           key: keyId,
@@ -240,7 +258,7 @@ export default function CheckoutPage() {
         rzp.open();
       });
 
-      // 4. Verify payment signature and create the order
+      // 5. Verify payment signature and create the order
       const verifyRes = await fetch("/api/razorpay/verify-payment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
