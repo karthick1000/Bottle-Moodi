@@ -121,6 +121,7 @@ model CartItem {
   productId   Int
   size        String
   amount      Int
+  qty         Int      @default(1)
   createdAt   DateTime @default(now())
   product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
 

@@ -15,11 +15,13 @@ import { validateDiscountCode } from "@/lib/db/discounts";
 export interface QuoteRequestItem {
   productId: number;
   size: string;
+  qty: number;
 }
 
 export interface QuoteLine {
   productId: number;
   size: string;
+  qty: number;
   /** Current price of this product in this size, straight from the DB. */
   unitPrice: number;
 }
@@ -61,16 +63,14 @@ export async function quoteOrder(
   if (products.length !== productIds.length) throw new UnavailableProductError();
   const byId = new Map(products.map((p) => [p.id, p]));
 
-  // One unit per line: the cart store dedupes on (product, size) and the
-  // CartItem table enforces the same uniqueness, so there is no quantity to
-  // multiply by. The client's own price field is ignored outright.
   const lines: QuoteLine[] = items.map((i) => ({
     productId: i.productId,
     size:      i.size,
+    qty:       Math.max(1, i.qty),
     unitPrice: priceFor(byId.get(i.productId)!, i.size as Size),
   }));
 
-  const subtotal = lines.reduce((s, l) => s + l.unitPrice, 0);
+  const subtotal = lines.reduce((s, l) => s + l.unitPrice * l.qty, 0);
   const shipping = shippingFor(subtotal, shippingRule);
 
   let discountAmount = 0;
@@ -94,12 +94,12 @@ export async function quoteOrder(
   };
 }
 
-/** OrderItem rows for a quote. `amount` is the line total shown on receipts. */
+/** OrderItem rows for a quote. `amount` is the line total (unitPrice × qty). */
 export function quoteToOrderItems(quote: Quote) {
   return quote.lines.map((l) => ({
     productId: l.productId,
     size:      l.size,
-    amount:    l.unitPrice,
+    amount:    l.unitPrice * l.qty,
     unitPrice: l.unitPrice,
   }));
 }

@@ -4,6 +4,7 @@ export const addCartItemSchema = z.object({
   productId: z.number().int().positive(),
   size: z.string().min(1),
   amount: z.number().int().positive(),
+  qty: z.number().int().positive().optional(),
 });
 
 export const deliveryAddressSchema = z.object({

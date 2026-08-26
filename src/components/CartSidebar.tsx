@@ -7,7 +7,7 @@ import { money } from "@/lib/data";
 import { useRouter } from "next/navigation";
 
 export function CartSidebar() {
-  const { items, cartOpen, toggleCart, closeCart, removeItem, formattedSubtotal, subtotal, shippingCost } = useCartStore();
+  const { items, cartOpen, toggleCart, closeCart, removeItem, setQty, formattedSubtotal, subtotal, shippingCost } = useCartStore();
   const router = useRouter();
 
   const [discountCode,    setDiscountCode]    = useState("");
@@ -84,8 +84,8 @@ export function CartSidebar() {
           ) : (
             <div className="flex flex-col gap-4">
               {items.map((item, i) => (
-                <div key={i} className="flex gap-3 items-center">
-                  <div className="w-[48px] h-[64px] md:w-[52px] md:h-[68px] flex-none border border-[#d9cfb8] rounded-sm overflow-hidden relative">
+                <div key={i} className="flex gap-3 items-start">
+                  <div className="w-[48px] h-[64px] md:w-[52px] md:h-[68px] flex-none border border-[#d9cfb8] rounded-sm overflow-hidden relative mt-0.5">
                     {item.image ? (
                       <Image
                         src={item.image}
@@ -105,6 +105,42 @@ export function CartSidebar() {
                     <div className="font-mono text-[10.5px] md:text-[11px] text-[#6e6455] mt-0.5">
                       {item.size} · {money(item.amount)}
                     </div>
+                    {/* qty stepper */}
+                    <div className="flex items-center gap-1.5 mt-2">
+                      <button
+                        aria-label="Decrease quantity"
+                        onClick={() => {
+                          const newQty = item.qty - 1;
+                          if (newQty <= 0) {
+                            if (item.id) fetch(`/api/cart/${item.id}`, { method: "DELETE" }).catch(() => {});
+                            removeItem(i);
+                          } else {
+                            if (item.id) fetch(`/api/cart/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qty: newQty }) }).catch(() => {});
+                            setQty(i, newQty);
+                          }
+                        }}
+                        className="w-6 h-6 flex items-center justify-center border border-[#d9cfb8] rounded-sm font-mono text-[14px] leading-none hover:border-dark transition-colors cursor-pointer bg-transparent text-dark"
+                      >
+                        −
+                      </button>
+                      <span className="font-mono text-[12px] w-5 text-center tabular-nums select-none">{item.qty}</span>
+                      <button
+                        aria-label="Increase quantity"
+                        onClick={() => {
+                          const newQty = item.qty + 1;
+                          if (item.id) fetch(`/api/cart/${item.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ qty: newQty }) }).catch(() => {});
+                          setQty(i, newQty);
+                        }}
+                        className="w-6 h-6 flex items-center justify-center border border-[#d9cfb8] rounded-sm font-mono text-[14px] leading-none hover:border-dark transition-colors cursor-pointer bg-transparent text-dark"
+                      >
+                        +
+                      </button>
+                      {item.qty > 1 && (
+                        <span className="font-mono text-[10px] text-[#6e6455] ml-1 tabular-nums">
+                          = {money(item.amount * item.qty)}
+                        </span>
+                      )}
+                    </div>
                   </div>
                   <button
                     onClick={() => {
@@ -113,7 +149,7 @@ export function CartSidebar() {
                       }
                       removeItem(i);
                     }}
-                    className="cursor-pointer border-none bg-transparent font-mono text-[9.5px] md:text-[10px] text-[#6e6455] tracking-[.1em] py-2 px-1 min-h-[40px] hover:text-[#e8452c] transition-colors"
+                    className="cursor-pointer border-none bg-transparent font-mono text-[9.5px] md:text-[10px] text-[#6e6455] tracking-[.1em] py-1 px-1 min-h-[40px] hover:text-[#e8452c] transition-colors shrink-0"
                   >
                     REMOVE
                   </button>
