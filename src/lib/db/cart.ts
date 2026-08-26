@@ -17,6 +17,7 @@ export async function getUserCart(clerkUserId: string) {
         select: {
           slug: true, title: true, tamil: true,
           base: true, priceA3: true, priceA2: true,
+          images: { select: { url: true }, orderBy: { position: "asc" }, take: 1 },
         },
       },
     },
@@ -26,7 +27,12 @@ export async function getUserCart(clerkUserId: string) {
   return rows.map(({ product, ...row }) => ({
     ...row,
     amount: priceFor(product, row.size as Size),
-    product: { slug: product.slug, title: product.title, tamil: product.tamil },
+    product: {
+      slug: product.slug,
+      title: product.title,
+      tamil: product.tamil,
+      image: product.images[0]?.url,
+    },
   }));
 }
 

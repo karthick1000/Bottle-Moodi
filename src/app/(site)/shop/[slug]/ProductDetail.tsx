@@ -28,6 +28,7 @@ export function ProductDetail({ product }: Props) {
       tamil: product.tamil,
       size,
       amount: price,
+      image: product.images?.[0]?.url,
     });
     setToast(`${product.title} · ${size}`);
     openCart();
