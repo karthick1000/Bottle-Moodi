@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/store";
@@ -437,11 +438,26 @@ export default function CheckoutPage() {
                 <p className="text-sm text-[#6e6455]">Your bag is empty.</p>
               ) : (
                 items.map((c, i) => (
-                  <div key={i} className="flex justify-between gap-3 text-[13px] md:text-[14px]">
-                    <span>
+                  <div key={i} className="flex items-center gap-3">
+                    <div className="w-10 h-[54px] flex-none border border-[#d9cfb8] rounded-sm overflow-hidden relative bg-[#e8e0cc]">
+                      {c.image ? (
+                        <Image
+                          src={c.image}
+                          alt={c.title}
+                          fill
+                          sizes="40px"
+                          className="object-cover no-save"
+                          draggable={false}
+                          onContextMenu={(e) => e.preventDefault()}
+                        />
+                      ) : (
+                        <div className="hatch-light w-full h-full" />
+                      )}
+                    </div>
+                    <span className="flex-1 min-w-0 text-[13px] md:text-[14px] leading-snug">
                       {c.title} · {c.size}
                     </span>
-                    <span className="font-mono text-[11.5px] md:text-[12.5px] shrink-0">
+                    <span className="font-mono text-[11.5px] md:text-[12.5px] shrink-0 tabular-nums">
                       {money(c.amount)}
                     </span>
                   </div>
