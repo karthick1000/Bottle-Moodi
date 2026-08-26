@@ -14,6 +14,7 @@ export interface CartItem {
   size: Size;
   /** Unit price for this size, resolved by the caller from the product's own prices. */
   amount: number;
+  image?: string;
 }
 
 // Shape returned by GET /api/cart
@@ -22,7 +23,7 @@ export interface DbCartItem {
   productId: number;
   size: string;
   amount: number;
-  product: { slug: string; title: string; tamil: string };
+  product: { slug: string; title: string; tamil: string; image?: string };
 }
 
 interface CartStore {
@@ -95,6 +96,7 @@ export const useCartStore = create<CartStore>()(
           tamil: d.product.tamil,
           size: d.size as Size,
           amount: d.amount,
+          image: d.product.image,
         }));
         set({ items: synced });
       },
