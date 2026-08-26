@@ -1,5 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { SIZE_UPCHARGE } from "@/lib/data";
 
 const PRODUCT_SELECT = {
   id: true,
@@ -8,6 +9,8 @@ const PRODUCT_SELECT = {
   tamil: true,
   tag: true,
   base: true,
+  priceA3: true,
+  priceA2: true,
   sub: true,
   active: true,
   images: { orderBy: { position: "asc" as const } },
@@ -56,10 +59,21 @@ export async function createProduct(data: {
   tamil: string;
   tag: string;
   base: number;
+  priceA3?: number;
+  priceA2?: number;
   sub: string;
   active?: boolean;
 }) {
-  const product = await prisma.product.create({ data, select: PRODUCT_SELECT });
+  // A3/A2 are per-product now, but a caller that only knows the A4 price
+  // (the admin's "New product" draft) still gets sensible starting values.
+  const product = await prisma.product.create({
+    data: {
+      ...data,
+      priceA3: data.priceA3 ?? data.base + SIZE_UPCHARGE.A3,
+      priceA2: data.priceA2 ?? data.base + SIZE_UPCHARGE.A2,
+    },
+    select: PRODUCT_SELECT,
+  });
   revalidateTag("products");
   return product;
 }
@@ -72,6 +86,8 @@ export async function updateProduct(
     tamil: string;
     tag: string;
     base: number;
+    priceA3: number;
+    priceA2: number;
     sub: string;
     active: boolean;
   }>

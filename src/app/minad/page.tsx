@@ -13,8 +13,22 @@ import { Plus, Upload, Archive, RotateCcw, Menu, X } from "lucide-react";
 interface ProductImage { id: number; url: string; position: number; }
 interface Product {
   id: number; slug: string; title: string; tamil: string;
-  tag: string; base: number; sub: string; active: boolean; images: ProductImage[];
+  tag: string; base: number; priceA3: number; priceA2: number;
+  sub: string; active: boolean; images: ProductImage[];
 }
+/** Product fields the admin table edits as integers rather than free text. */
+const NUMERIC_PRODUCT_FIELDS = ["base", "priceA3", "priceA2"] as const;
+
+/** Price columns, in the order the sizes appear on the storefront. */
+const PRICE_FIELDS = [
+  ["base",    "A4"],
+  ["priceA3", "A3"],
+  ["priceA2", "A2"],
+] as const;
+
+/** Shared grid track list for the products table header and its rows. */
+const PRODUCT_COLS = "56px 1.5fr 1.1fr 2fr 66px 66px 66px 78px 118px";
+
 interface DbOrder {
   id: number; clerkUserId: string; status: string; shipping: number; createdAt: string;
   items: { id: number; size: string; amount: number; product: { title: string; tamil: string } }[];
@@ -385,7 +399,9 @@ export default function AdminPage() {
   const editProduct = (id: number, key: keyof Product) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = e.target.value;
-      const v = (key==="base") ? (parseInt(raw.replace(/\D/g,""),10)||0) : raw;
+      const v = NUMERIC_PRODUCT_FIELDS.includes(key as typeof NUMERIC_PRODUCT_FIELDS[number])
+        ? (parseInt(raw.replace(/\D/g,""),10)||0)
+        : raw;
       setProducts(ps => ps.map(p => p.id===id ? {...p,[key]:v} : p));
 
       // Debounce the write. Firing a PUT per keystroke lets responses land out
@@ -641,7 +657,7 @@ export default function AdminPage() {
                     fetch("/api/admin/products", {
                       method:"POST",
                       headers:{"Content-Type":"application/json"},
-                      body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",base:499,sub:"New product description",active:false}),
+                      body:JSON.stringify({slug:`draft-${Date.now()}`,title:"Untitled print",tamil:"—",tag:"SIGNBOARD",base:499,priceA3:649,priceA2:849,sub:"New product description",active:false}),
                     }).then(async r=>{
                       const p = await r.json().catch(()=>null);
                       if (!r.ok || !p?.id) throw new Error(p?.error ?? `HTTP ${r.status}`);
@@ -657,19 +673,22 @@ export default function AdminPage() {
               </div>
 
               <div className="bm-table-wrap">
-                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:720 }}>
-                  <div style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
+                <div style={{ background:C.card, border:`1px solid ${C.border}`, borderRadius:6, overflow:"hidden", minWidth:1040 }}>
+                  <div style={{ display:"grid", gridTemplateColumns:PRODUCT_COLS,
                     gap:10, padding:"10px 14px", background:C.thead, borderBottom:`1px solid ${C.border}`,
                     fontSize:10.5, fontWeight:700, letterSpacing:".06em", color:C.muted }}>
-                    <span>ART</span><span>TITLE</span><span>TAMIL</span>
-                    <span>PRICE</span><span>STATUS</span><span>ACTIONS</span>
+                    <span>ART</span><span>TITLE</span><span>TAMIL</span><span>DESCRIPTION</span>
+                    {PRICE_FIELDS.map(([key,label]) => (
+                      <span key={key} title={`Price for the ${label} print`}>₹ {label}</span>
+                    ))}
+                    <span>STATUS</span><span>ACTIONS</span>
                   </div>
                   {products.length === 0 && !productsError && (
                     <EmptyState text="No products yet — create one with New product."/>
                   )}
                   {products.map(p => (
                     <div key={p.id}
-                      style={{ display:"grid", gridTemplateColumns:"56px 2fr 1.4fr 80px 90px 120px",
+                      style={{ display:"grid", gridTemplateColumns:PRODUCT_COLS,
                         gap:10, padding:"10px 14px", borderBottom:`1px solid ${C.rowBorder}`,
                         alignItems:"center", fontSize:13.5, opacity: p.active ? 1 : 0.55 }}>
                       <div>
@@ -697,13 +716,22 @@ export default function AdminPage() {
                           </button>
                         </div>
                       </div>
-                      {(["title","tamil","base"] as const).map(key => (
-                        <input key={key} value={String(p[key])} onChange={editProduct(p.id,key)}
+                      {(["title","tamil","sub"] as const).map(key => (
+                        <input key={key} value={p[key]} onChange={editProduct(p.id,key)}
+                          placeholder={key==="sub" ? "Poster description" : undefined}
+                          title={key==="sub" ? p.sub : undefined}
                           style={{ border:"1px solid transparent", borderRadius:3, padding:"6px 7px",
                             fontSize:13, background:"transparent", outline:"none", width:"100%",
                             boxSizing:"border-box",
-                            fontFamily: key==="tamil" ? "var(--font-anek)" : "inherit",
-                            fontVariantNumeric: key==="base" ? "tabular-nums" : "normal" }}
+                            fontFamily: key==="tamil" ? "var(--font-anek)" : "inherit" }}
+                          onFocus={fo} onBlur={fb}/>
+                      ))}
+                      {PRICE_FIELDS.map(([key,label]) => (
+                        <input key={key} value={String(p[key])} onChange={editProduct(p.id,key)}
+                          inputMode="numeric" aria-label={`${label} price`}
+                          style={{ border:"1px solid transparent", borderRadius:3, padding:"6px 7px",
+                            fontSize:13, background:"transparent", outline:"none", width:"100%",
+                            boxSizing:"border-box", fontVariantNumeric:"tabular-nums" }}
                           onFocus={fo} onBlur={fb}/>
                       ))}
                       <span style={{ fontSize:11, fontWeight:600,

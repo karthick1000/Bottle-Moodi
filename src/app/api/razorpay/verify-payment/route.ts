@@ -7,7 +7,7 @@ import { clearUserCart } from "@/lib/db/cart";
 import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { deliveryAddressSchema } from "@/lib/validators";
-import { SHIPPING, SIZE_UPCHARGE, type Size } from "@/lib/data";
+import { SHIPPING, priceFor, type Size } from "@/lib/data";
 
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
@@ -44,18 +44,21 @@ export async function POST(req: NextRequest) {
     const productIds = [...new Set(body.items.map((i) => i.productId))];
     const products = await prisma.product.findMany({
       where: { id: { in: productIds }, active: true },
-      select: { id: true, base: true },
+      select: { id: true, base: true, priceA3: true, priceA2: true },
     });
     if (products.length !== productIds.length) {
       return jsonErr("One or more products are unavailable", 400);
     }
-    const priceMap = new Map(products.map((p) => [p.id, p.base]));
+    const priceMap = new Map(products.map((p) => [p.id, p]));
 
     const itemsWithPrice = body.items.map((i) => ({
       productId: i.productId,
       size:      i.size,
       amount:    i.amount,
-      unitPrice: (priceMap.get(i.productId) ?? 0) + (SIZE_UPCHARGE[i.size as Size] ?? 0),
+      unitPrice: (() => {
+        const p = priceMap.get(i.productId);
+        return p ? priceFor(p, i.size as Size) : 0;
+      })(),
     }));
 
     // Subtotal from real prices × quantities
