@@ -4,12 +4,11 @@ import { createAddress } from "@/lib/db/addresses";
 import { clearUserCart } from "@/lib/db/cart";
 import { createOrderSchema } from "@/lib/validators";
 import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
-import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
+import { incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { priceFor, shippingFor, type Size } from "@/lib/data";
-import { getShippingRule } from "@/lib/db/settings";
+import { quoteOrder, quoteToOrderItems, UnavailableProductError } from "@/lib/db/quote";
 
 export async function GET(req: NextRequest) {
   try {
@@ -79,39 +78,14 @@ export async function POST(req: NextRequest) {
     const userId = await getAuthUserId(req);
     const body   = await parseBody(req, createOrderSchema);
 
-    // Fetch current prices from DB — never trust client-sent prices
-    const productIds = [...new Set(body.items.map((i) => i.productId))];
-    const products = await prisma.product.findMany({
-      where: { id: { in: productIds }, active: true },
-      select: { id: true, base: true, priceA3: true, priceA2: true },
-    });
-    if (products.length !== productIds.length) {
-      return jsonErr("One or more products are unavailable", 400);
-    }
-    const priceMap = new Map(products.map((p) => [p.id, p]));
-
-    const itemsWithPrice = body.items.map((i) => ({
-      productId: i.productId,
-      size:      i.size,
-      amount:    i.amount,
-      unitPrice: (() => {
-        const p = priceMap.get(i.productId);
-        return p ? priceFor(p, i.size as Size) : 0;
-      })(),
-    }));
-
-    // Compute subtotal from real prices × quantities (not quantities alone)
-    const subtotal = itemsWithPrice.reduce((s, i) => s + i.unitPrice * i.amount, 0);
-
-    // Validate discount if provided
-    let resolvedDiscountAmount = 0;
-    let discountId: number | undefined;
-    if (body.discountCode) {
-      const validation = await validateDiscountCode(body.discountCode, subtotal);
-      if (validation.valid) {
-        resolvedDiscountAmount = validation.discountAmount;
-        discountId = validation.discountId;
-      }
+    // Prices, delivery and the discount all come from the server. Nothing the
+    // client sent about money is read — see lib/db/quote.ts.
+    let quote;
+    try {
+      quote = await quoteOrder(body.items, body.discountCode);
+    } catch (e) {
+      if (e instanceof UnavailableProductError) return jsonErr(e.message, 400);
+      throw e;
     }
 
     const address = await createAddress({
@@ -123,22 +97,18 @@ export async function POST(req: NextRequest) {
       pincode: body.address.pincode,
     });
 
-    // Delivery is resolved server-side from the admin's rule for the same
-    // reason prices are: the client's number is a display value, not an input.
-    const shipping = shippingFor(subtotal, await getShippingRule());
-
     const order = await createOrder(
       userId,
-      itemsWithPrice,
+      quoteToOrderItems(quote),
       address.id,
-      shipping,
+      quote.shipping,
       body.discountCode,
-      resolvedDiscountAmount,
+      quote.discountAmount,
     );
     await clearUserCart(userId);
 
-    if (body.discountCode && discountId != null) {
-      await incrementUsedCount(discountId);
+    if (quote.discountId != null) {
+      await incrementUsedCount(quote.discountId);
     }
 
     // Send confirmation email (non-blocking — don't fail the order if email fails)

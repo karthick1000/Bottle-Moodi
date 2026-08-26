@@ -1,8 +1,27 @@
 import { NextRequest } from "next/server";
-import { getAuthUserId, jsonOk, jsonErr } from "@/lib/apiHelpers";
+import { z } from "zod";
+import { getAuthUserId, jsonOk, jsonErr, parseBody } from "@/lib/apiHelpers";
+import { quoteOrder, UnavailableProductError } from "@/lib/db/quote";
 
 const KEY_ID = process.env.RAZORPAY_KEY_ID;
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
+
+/**
+ * The client says what is in the cart, never what it costs. Taking an `amount`
+ * from the browser let a stale — or edited — page open a payment for any
+ * figure it liked.
+ */
+const createOrderSchema = z.object({
+  items: z
+    .array(
+      z.object({
+        productId: z.number().int().positive(),
+        size:      z.string().min(1),
+      })
+    )
+    .min(1),
+  discountCode: z.string().optional(),
+});
 
 export async function POST(req: NextRequest) {
   if (!KEY_ID || !KEY_SECRET) {
@@ -12,12 +31,19 @@ export async function POST(req: NextRequest) {
 
   try {
     await getAuthUserId(req);
+    const body = await parseBody(req, createOrderSchema);
 
-    const body = await req.json().catch(() => ({}));
-    const amountPaise = Math.round(Number(body.amount));
+    let quote;
+    try {
+      quote = await quoteOrder(body.items, body.discountCode);
+    } catch (e) {
+      if (e instanceof UnavailableProductError) return jsonErr(e.message, 400);
+      throw e;
+    }
 
-    if (!Number.isInteger(amountPaise) || amountPaise < 100) {
-      return jsonErr("Invalid payment amount", 400);
+    const amountPaise = quote.total * 100;
+    if (amountPaise < 100) {
+      return jsonErr("Order total is below the minimum payable amount", 400);
     }
 
     const receipt = `bm_${Date.now()}`;
@@ -39,7 +65,21 @@ export async function POST(req: NextRequest) {
     }
 
     const order = await rzpRes.json();
-    return jsonOk({ id: order.id, amount: order.amount, currency: order.currency });
+
+    // The quote goes back so the page can reconcile against what it displayed
+    // and refuse to open a modal for a number the customer never saw.
+    return jsonOk({
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      quote: {
+        lines:          quote.lines,
+        subtotal:       quote.subtotal,
+        shipping:       quote.shipping,
+        discountAmount: quote.discountAmount,
+        total:          quote.total,
+      },
+    });
   } catch (res) {
     if (res instanceof Response) return res;
     console.error("[razorpay create-order] unexpected error:", res);
