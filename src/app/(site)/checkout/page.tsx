@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCartStore } from "@/lib/store";
-import { money, SHIPPING } from "@/lib/data";
+import { money } from "@/lib/data";
 import { CapDisc } from "@/components/CapDisc";
 
 // ── Razorpay global type ─────────────────────────────────────────────────────
@@ -83,7 +83,7 @@ type ToastState = { message: string; type: ToastKind } | null;
 
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, formattedSubtotal, formattedShipping, clearCart, subtotal } = useCartStore();
+  const { items, formattedSubtotal, formattedShipping, clearCart, subtotal, shippingCost } = useCartStore();
   const sub = subtotal();
 
   const [form, setForm] = useState({ name: "", phone: "", address: "", city: "", pincode: "" });
@@ -298,7 +298,7 @@ export default function CheckoutPage() {
     }
   };
 
-  const shipping = items.length > 0 ? SHIPPING : 0;
+  const shipping = shippingCost();
   const total    = Math.max(0, sub - discount) + shipping;
 
   // ── Field renderer ──────────────────────────────────────────────────────────

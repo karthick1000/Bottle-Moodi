@@ -34,12 +34,12 @@ export function ProductCard({ product, dark = false }: ProductCardProps) {
             />
           ) : (
             <>
-              {!dark && (
+              {!dark && product.tag && (
                 <span
                   className="absolute left-2 top-2 font-mono text-[8px] md:text-[9px] tracking-[.12em]"
                   style={{ color: "#8d8371" }}
                 >
-                  {product.tag}
+                  {product.tag.label}
                 </span>
               )}
               <span

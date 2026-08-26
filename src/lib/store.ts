@@ -2,7 +2,9 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { money, SHIPPING, SIZE_UPCHARGE, type Size } from "./data";
+import {
+  money, shippingFor, SHIPPING_DEFAULTS, type ShippingRule, type Size,
+} from "./data";
 
 export interface CartItem {
   id?: number; // DB row id — present after sync, absent for guest/local items
@@ -10,7 +12,7 @@ export interface CartItem {
   title: string;
   tamil: string;
   size: Size;
-  base: number;
+  /** Unit price for this size, resolved by the caller from the product's own prices. */
   amount: number;
 }
 
@@ -26,7 +28,13 @@ export interface DbCartItem {
 interface CartStore {
   items: CartItem[];
   cartOpen: boolean;
-  addItem: (item: Omit<CartItem, "amount">) => void;
+  /**
+   * The admin's delivery rule. Seeded with the defaults so the first paint is
+   * sane, then replaced once ConfigSync passes down what the server read.
+   */
+  shippingRule: ShippingRule;
+  setShippingRule: (rule: ShippingRule) => void;
+  addItem: (item: CartItem) => void;
   removeItem: (index: number) => void;
   clearCart: () => void;
   toggleCart: () => void;
@@ -51,20 +59,22 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       cartOpen: false,
+      shippingRule: SHIPPING_DEFAULTS,
       authOpen: false,
       authMode: "login" as "login" | "signup",
 
       addItem: (item) => {
-        const amount = item.base + SIZE_UPCHARGE[item.size];
         set((s) => {
           // Honour the DB's unique constraint: one row per (productId, size)
           const exists = s.items.some(
             (x) => x.productId === item.productId && x.size === item.size
           );
           if (exists) return s;
-          return { items: [...s.items, { ...item, amount }] };
+          return { items: [...s.items, item] };
         });
       },
+
+      setShippingRule: (rule) => set({ shippingRule: rule }),
 
       removeItem: (index) =>
         set((s) => ({ items: s.items.filter((_, i) => i !== index) })),
@@ -82,14 +92,13 @@ export const useCartStore = create<CartStore>()(
           title: d.product.title,
           tamil: d.product.tamil,
           size: d.size as Size,
-          base: d.amount,
           amount: d.amount,
         }));
         set({ items: synced });
       },
 
       subtotal: () => get().items.reduce((s, c) => s + c.amount, 0),
-      shippingCost: () => (get().items.length > 0 ? SHIPPING : 0),
+      shippingCost: () => shippingFor(get().subtotal(), get().shippingRule),
       total: () => get().subtotal() + get().shippingCost(),
 
       formattedSubtotal: () => money(get().subtotal()),

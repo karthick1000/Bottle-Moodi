@@ -8,7 +8,8 @@ import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { clerkClient } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { SIZE_UPCHARGE, type Size } from "@/lib/data";
+import { priceFor, shippingFor, type Size } from "@/lib/data";
+import { getShippingRule } from "@/lib/db/settings";
 
 export async function GET(req: NextRequest) {
   try {
@@ -82,18 +83,21 @@ export async function POST(req: NextRequest) {
     const productIds = [...new Set(body.items.map((i) => i.productId))];
     const products = await prisma.product.findMany({
       where: { id: { in: productIds }, active: true },
-      select: { id: true, base: true },
+      select: { id: true, base: true, priceA3: true, priceA2: true },
     });
     if (products.length !== productIds.length) {
       return jsonErr("One or more products are unavailable", 400);
     }
-    const priceMap = new Map(products.map((p) => [p.id, p.base]));
+    const priceMap = new Map(products.map((p) => [p.id, p]));
 
     const itemsWithPrice = body.items.map((i) => ({
       productId: i.productId,
       size:      i.size,
       amount:    i.amount,
-      unitPrice: (priceMap.get(i.productId) ?? 0) + (SIZE_UPCHARGE[i.size as Size] ?? 0),
+      unitPrice: (() => {
+        const p = priceMap.get(i.productId);
+        return p ? priceFor(p, i.size as Size) : 0;
+      })(),
     }));
 
     // Compute subtotal from real prices × quantities (not quantities alone)
@@ -119,11 +123,15 @@ export async function POST(req: NextRequest) {
       pincode: body.address.pincode,
     });
 
+    // Delivery is resolved server-side from the admin's rule for the same
+    // reason prices are: the client's number is a display value, not an input.
+    const shipping = shippingFor(subtotal, await getShippingRule());
+
     const order = await createOrder(
       userId,
       itemsWithPrice,
       address.id,
-      undefined,
+      shipping,
       body.discountCode,
       resolvedDiscountAmount,
     );

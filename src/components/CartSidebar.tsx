@@ -2,11 +2,11 @@
 
 import { useState } from "react";
 import { useCartStore } from "@/lib/store";
-import { money, SHIPPING } from "@/lib/data";
+import { money } from "@/lib/data";
 import { useRouter } from "next/navigation";
 
 export function CartSidebar() {
-  const { items, cartOpen, toggleCart, closeCart, removeItem, formattedSubtotal, subtotal } = useCartStore();
+  const { items, cartOpen, toggleCart, closeCart, removeItem, formattedSubtotal, subtotal, shippingCost } = useCartStore();
   const router = useRouter();
 
   const [discountCode,    setDiscountCode]    = useState("");
@@ -17,7 +17,7 @@ export function CartSidebar() {
   if (!cartOpen) return null;
 
   const sub = subtotal();
-  const shipping = items.length > 0 ? SHIPPING : 0;
+  const shipping = shippingCost();
   const total = sub + shipping - discountAmount;
 
   const applyDiscount = async () => {
