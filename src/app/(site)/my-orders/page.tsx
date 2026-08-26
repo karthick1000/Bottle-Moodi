@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@clerk/nextjs";
-import { money, SHIPPING } from "@/lib/data";
+import { money } from "@/lib/data";
 
 interface OrderProduct {
   title: string;
@@ -170,7 +170,8 @@ export default function MyOrdersPage() {
         <div className="flex flex-col gap-5">
           {orders.map((order) => {
             const itemsTotal = order.items.reduce((s, i) => s + i.amount, 0);
-            const total = itemsTotal + (order.shipping ?? SHIPPING);
+            // Always the fee the order was actually charged — never today's rule.
+            const total = itemsTotal + order.shipping;
             return (
               <div
                 key={order.id}
@@ -214,7 +215,9 @@ export default function MyOrdersPage() {
                 )}
                 <div className="border-t border-[#d9cfb8] pt-3 flex justify-between font-mono text-[12.5px]">
                   <span className="text-[#6e6455]">
-                    TOTAL (incl. shipping ₹{order.shipping ?? SHIPPING})
+                    {order.shipping > 0
+                      ? `TOTAL (incl. delivery ₹${order.shipping})`
+                      : "TOTAL (free delivery)"}
                   </span>
                   <span className="font-semibold">{money(total)}</span>
                 </div>

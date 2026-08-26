@@ -88,7 +88,7 @@ export function ProductDetail({ product }: Props) {
         {/* Details */}
         <div className="pt-1">
           <span className="font-bakbak text-[11px] md:text-[12px] tracking-[.24em] text-[#e8452c]">
-            {product.tag}
+            {product.tag?.label ?? "POSTER"}
           </span>
           <h1
             className="mt-3 font-bakbak leading-[1.02]"

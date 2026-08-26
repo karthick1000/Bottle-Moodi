@@ -2,7 +2,9 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { money, SHIPPING, type Size } from "./data";
+import {
+  money, shippingFor, SHIPPING_DEFAULTS, type ShippingRule, type Size,
+} from "./data";
 
 export interface CartItem {
   id?: number; // DB row id — present after sync, absent for guest/local items
@@ -26,6 +28,12 @@ export interface DbCartItem {
 interface CartStore {
   items: CartItem[];
   cartOpen: boolean;
+  /**
+   * The admin's delivery rule. Seeded with the defaults so the first paint is
+   * sane, then replaced once ConfigSync passes down what the server read.
+   */
+  shippingRule: ShippingRule;
+  setShippingRule: (rule: ShippingRule) => void;
   addItem: (item: CartItem) => void;
   removeItem: (index: number) => void;
   clearCart: () => void;
@@ -51,6 +59,7 @@ export const useCartStore = create<CartStore>()(
     (set, get) => ({
       items: [],
       cartOpen: false,
+      shippingRule: SHIPPING_DEFAULTS,
       authOpen: false,
       authMode: "login" as "login" | "signup",
 
@@ -64,6 +73,8 @@ export const useCartStore = create<CartStore>()(
           return { items: [...s.items, item] };
         });
       },
+
+      setShippingRule: (rule) => set({ shippingRule: rule }),
 
       removeItem: (index) =>
         set((s) => ({ items: s.items.filter((_, i) => i !== index) })),
@@ -87,7 +98,7 @@ export const useCartStore = create<CartStore>()(
       },
 
       subtotal: () => get().items.reduce((s, c) => s + c.amount, 0),
-      shippingCost: () => (get().items.length > 0 ? SHIPPING : 0),
+      shippingCost: () => shippingFor(get().subtotal(), get().shippingRule),
       total: () => get().subtotal() + get().shippingCost(),
 
       formattedSubtotal: () => money(get().subtotal()),

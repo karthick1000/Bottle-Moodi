@@ -1,5 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { prisma } from "@/lib/prisma";
+import { SHIPPING_DEFAULTS, type ShippingRule } from "@/lib/data";
 
 /** Editable homepage content. Defaults are used until the admin saves. */
 export const SETTING_DEFAULTS = {
@@ -9,6 +10,10 @@ export const SETTING_DEFAULTS = {
   studioPhotoUrl: "",
   teeMockupUrl:   "",
   toteMockupUrl:  "",
+  // Delivery. Stored as strings like every other setting; read back through
+  // getShippingRule below, which is the only thing that should parse them.
+  shippingFee:       String(SHIPPING_DEFAULTS.fee),
+  freeShippingAbove: String(SHIPPING_DEFAULTS.freeAbove),
 } as const;
 
 export type SettingKey = keyof typeof SETTING_DEFAULTS;
@@ -37,6 +42,26 @@ export const getSettings = unstable_cache(_getSettings, ["site-settings"], {
 /** Uncached read — the admin console must always see what it just saved. */
 export async function getSettingsUncached(): Promise<Settings> {
   return _getSettings();
+}
+
+/**
+ * The delivery rule as numbers. A malformed or negative stored value falls
+ * back to the default rather than charging a nonsense amount.
+ */
+export function shippingRuleFrom(settings: Settings): ShippingRule {
+  const num = (raw: string, fallback: number) => {
+    const n = Number.parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 0 ? n : fallback;
+  };
+  return {
+    fee:       num(settings.shippingFee, SHIPPING_DEFAULTS.fee),
+    freeAbove: num(settings.freeShippingAbove, SHIPPING_DEFAULTS.freeAbove),
+  };
+}
+
+/** Cached delivery rule for the storefront and the order-writing routes. */
+export async function getShippingRule(): Promise<ShippingRule> {
+  return shippingRuleFrom(await getSettings());
 }
 
 /**

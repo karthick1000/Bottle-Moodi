@@ -10,6 +10,18 @@ vi.mock('@/lib/prisma', () => ({
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn(),
+    },
+    tag: {
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
+    siteSetting: {
+      findMany: vi.fn(),
+      upsert: vi.fn(),
     },
     order: {
       findMany: vi.fn(),

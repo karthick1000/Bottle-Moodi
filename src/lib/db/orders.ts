@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { OrderStatus } from "@prisma/client";
+import { SHIPPING_DEFAULTS } from "@/lib/data";
 
 export type { OrderStatus };
 
@@ -44,7 +45,7 @@ export async function createOrder(
   clerkUserId: string,
   items: { productId: number; size: string; amount: number; unitPrice: number }[],
   addressId: number,
-  shipping = 79,
+  shipping = SHIPPING_DEFAULTS.fee,
   discountCode?: string,
   discountAmount = 0,
   status?: OrderStatus,

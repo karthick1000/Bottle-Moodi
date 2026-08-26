@@ -41,7 +41,7 @@ export const createProductSchema = z.object({
   slug: z.string().min(1),
   title: z.string().min(1),
   tamil: z.string().min(1),
-  tag: z.string().min(1),
+  tagId: z.number().int().positive().nullable().optional(),
   base: z.number().int().positive(),
   priceA3: z.number().int().positive().optional(),
   priceA2: z.number().int().positive().optional(),
@@ -53,12 +53,22 @@ export const updateProductSchema = z.object({
   slug: z.string().min(1).optional(),
   title: z.string().min(1).optional(),
   tamil: z.string().min(1).optional(),
-  tag: z.string().min(1).optional(),
+  tagId: z.number().int().positive().nullable().optional(),
   base: z.number().int().positive().optional(),
   priceA3: z.number().int().positive().optional(),
   priceA2: z.number().int().positive().optional(),
   sub: z.string().min(1).optional(),
   active: z.boolean().optional(),
+});
+
+/** Tag labels are chips in a single scrolling row — keep them short. */
+export const createTagSchema = z.object({
+  label: z.string().trim().min(1).max(24),
+});
+
+export const updateTagSchema = z.object({
+  label: z.string().trim().min(1).max(24).optional(),
+  position: z.number().int().nonnegative().optional(),
 });
 
 export const validateDiscountSchema = z.object({

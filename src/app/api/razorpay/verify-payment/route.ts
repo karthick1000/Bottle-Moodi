@@ -7,7 +7,8 @@ import { clearUserCart } from "@/lib/db/cart";
 import { validateDiscountCode, incrementUsedCount } from "@/lib/db/discounts";
 import { sendOrderConfirmationEmail } from "@/lib/email";
 import { deliveryAddressSchema } from "@/lib/validators";
-import { SHIPPING, priceFor, type Size } from "@/lib/data";
+import { priceFor, shippingFor, type Size } from "@/lib/data";
+import { getShippingRule } from "@/lib/db/settings";
 
 const KEY_SECRET = process.env.RAZORPAY_KEY_SECRET;
 
@@ -95,6 +96,8 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    const shipping = shippingFor(subtotal, await getShippingRule());
+
     // ── 4. Atomically create Payment + Address + Order ─────────────────────
     // If any step fails, all three roll back — no orphaned Payment record.
     const order = await prisma.$transaction(async (tx) => {
@@ -123,7 +126,7 @@ export async function POST(req: NextRequest) {
         data: {
           clerkUserId:    userId,
           status:         "PAID",
-          shipping:       SHIPPING,
+          shipping,
           discountCode:   body.discountCode ?? null,
           discountAmount: resolvedDiscountAmount,
           addressId:      address.id,
