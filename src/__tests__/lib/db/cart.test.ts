@@ -7,9 +7,18 @@ import {
   clearUserCart,
 } from '@/lib/db/cart';
 
+const createdAt = new Date();
+
+/** What getUserCart hands back: product trimmed to display fields. */
 const mockCartItem = {
-  id: 1, clerkUserId: 'user_1', productId: 1, size: 'A3', amount: 649, createdAt: new Date(),
+  id: 1, clerkUserId: 'user_1', productId: 1, size: 'A3', amount: 649, createdAt,
   product: { slug: 'meter-podu', title: 'Meter Podu', tamil: 'மீட்டர் போடு' },
+};
+
+/** What the DB row looks like — includes the prices getUserCart reprices from. */
+const mockCartRow = {
+  ...mockCartItem,
+  product: { ...mockCartItem.product, base: 499, priceA3: 649, priceA2: 849 },
 };
 
 beforeEach(() => {
@@ -18,12 +27,29 @@ beforeEach(() => {
 
 describe('getUserCart', () => {
   it('returns cart items for a user', async () => {
-    vi.mocked(prisma.cartItem.findMany).mockResolvedValue([mockCartItem] as never);
+    vi.mocked(prisma.cartItem.findMany).mockResolvedValue([mockCartRow] as never);
     const result = await getUserCart('user_1');
     expect(result).toEqual([mockCartItem]);
     expect(prisma.cartItem.findMany).toHaveBeenCalledWith(
       expect.objectContaining({ where: { clerkUserId: 'user_1' } })
     );
+  });
+
+  it('reprices a stale row from the product it points at', async () => {
+    // Row was written when A3 cost 649; the admin has since moved it to 799.
+    vi.mocked(prisma.cartItem.findMany).mockResolvedValue([
+      { ...mockCartRow, product: { ...mockCartRow.product, priceA3: 799 } },
+    ] as never);
+    const [item] = await getUserCart('user_1');
+    expect(item.amount).toBe(799);
+  });
+
+  it('prices each size from its own column', async () => {
+    vi.mocked(prisma.cartItem.findMany).mockResolvedValue([
+      { ...mockCartRow, size: 'A2' },
+    ] as never);
+    const [item] = await getUserCart('user_1');
+    expect(item.amount).toBe(849);
   });
 
   it('returns empty array for unknown user', async () => {
