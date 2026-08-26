@@ -2,7 +2,7 @@
 
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { money, SHIPPING, SIZE_UPCHARGE, type Size } from "./data";
+import { money, SHIPPING, type Size } from "./data";
 
 export interface CartItem {
   id?: number; // DB row id — present after sync, absent for guest/local items
@@ -10,7 +10,7 @@ export interface CartItem {
   title: string;
   tamil: string;
   size: Size;
-  base: number;
+  /** Unit price for this size, resolved by the caller from the product's own prices. */
   amount: number;
 }
 
@@ -26,7 +26,7 @@ export interface DbCartItem {
 interface CartStore {
   items: CartItem[];
   cartOpen: boolean;
-  addItem: (item: Omit<CartItem, "amount">) => void;
+  addItem: (item: CartItem) => void;
   removeItem: (index: number) => void;
   clearCart: () => void;
   toggleCart: () => void;
@@ -55,14 +55,13 @@ export const useCartStore = create<CartStore>()(
       authMode: "login" as "login" | "signup",
 
       addItem: (item) => {
-        const amount = item.base + SIZE_UPCHARGE[item.size];
         set((s) => {
           // Honour the DB's unique constraint: one row per (productId, size)
           const exists = s.items.some(
             (x) => x.productId === item.productId && x.size === item.size
           );
           if (exists) return s;
-          return { items: [...s.items, { ...item, amount }] };
+          return { items: [...s.items, item] };
         });
       },
 
@@ -82,7 +81,6 @@ export const useCartStore = create<CartStore>()(
           title: d.product.title,
           tamil: d.product.tamil,
           size: d.size as Size,
-          base: d.amount,
           amount: d.amount,
         }));
         set({ items: synced });

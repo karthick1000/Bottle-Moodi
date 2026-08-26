@@ -12,7 +12,11 @@ model Product {
   title      String
   tamil      String
   tag        String
+  /// Price of the A4 print. A3/A2 are held in priceA3 / priceA2 so the
+  /// admin can set each size independently instead of a fixed upcharge.
   base       Int
+  priceA3    Int
+  priceA2    Int
   sub        String
   active     Boolean        @default(true)
   createdAt  DateTime       @default(now())

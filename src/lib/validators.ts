@@ -43,6 +43,8 @@ export const createProductSchema = z.object({
   tamil: z.string().min(1),
   tag: z.string().min(1),
   base: z.number().int().positive(),
+  priceA3: z.number().int().positive().optional(),
+  priceA2: z.number().int().positive().optional(),
   sub: z.string().min(1),
   active: z.boolean().optional(),
 });
@@ -53,6 +55,8 @@ export const updateProductSchema = z.object({
   tamil: z.string().min(1).optional(),
   tag: z.string().min(1).optional(),
   base: z.number().int().positive().optional(),
+  priceA3: z.number().int().positive().optional(),
+  priceA2: z.number().int().positive().optional(),
   sub: z.string().min(1).optional(),
   active: z.boolean().optional(),
 });
