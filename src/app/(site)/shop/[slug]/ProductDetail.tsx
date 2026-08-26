@@ -71,7 +71,9 @@ export function ProductDetail({ product }: Props) {
               fill
               priority
               sizes="(max-width: 768px) 100vw, 50vw"
-              className="object-cover"
+              className="object-cover no-save"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
           ) : (
             <div className="hatch-light w-full h-full flex items-center justify-center text-center px-8 md:px-11 py-10 md:py-14">

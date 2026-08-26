@@ -41,7 +41,7 @@ function MockupTile({ url, label, alt }: { url: string; label: string; alt: stri
   return (
     <div className="aspect-square border border-[#d9cfb8] overflow-hidden">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={url} alt={alt} className="w-full h-full object-cover" />
+      <img src={url} alt={alt} className="w-full h-full object-cover no-save" draggable={false} onContextMenu={(e) => e.preventDefault()} />
     </div>
   );
 }
@@ -218,7 +218,9 @@ export default function HomePage() {
             <img
               src={content.studioPhotoUrl}
               alt="Bottlemoodi posters on a studio wall"
-              className="absolute inset-0 w-full h-full object-cover"
+              className="absolute inset-0 w-full h-full object-cover no-save"
+              draggable={false}
+              onContextMenu={(e) => e.preventDefault()}
             />
           ) : (
             <span className="font-mono text-[11px] tracking-[.1em] text-[#6e6455] leading-[1.8]">
