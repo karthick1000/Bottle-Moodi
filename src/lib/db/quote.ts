@@ -15,7 +15,7 @@ import { validateDiscountCode } from "@/lib/db/discounts";
 export interface QuoteRequestItem {
   productId: number;
   size: string;
-  qty: number;
+  qty?: number;
 }
 
 export interface QuoteLine {
@@ -66,7 +66,7 @@ export async function quoteOrder(
   const lines: QuoteLine[] = items.map((i) => ({
     productId: i.productId,
     size:      i.size,
-    qty:       Math.max(1, i.qty),
+    qty:       Math.max(1, i.qty ?? 1),
     unitPrice: priceFor(byId.get(i.productId)!, i.size as Size),
   }));
 
