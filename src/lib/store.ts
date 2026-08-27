@@ -14,6 +14,7 @@ export interface CartItem {
   size: Size;
   /** Unit price for this size, resolved by the caller from the product's own prices. */
   amount: number;
+  qty: number;
   image?: string;
 }
 
@@ -23,6 +24,7 @@ export interface DbCartItem {
   productId: number;
   size: string;
   amount: number;
+  qty: number;
   product: { slug: string; title: string; tamil: string; image?: string };
 }
 
@@ -35,8 +37,9 @@ interface CartStore {
    */
   shippingRule: ShippingRule;
   setShippingRule: (rule: ShippingRule) => void;
-  addItem: (item: CartItem) => void;
+  addItem: (item: Omit<CartItem, "qty">) => void;
   removeItem: (index: number) => void;
+  setQty: (index: number, qty: number) => void;
   clearCart: () => void;
   toggleCart: () => void;
   openCart: () => void;
@@ -68,12 +71,16 @@ export const useCartStore = create<CartStore>()(
 
       addItem: (item) => {
         set((s) => {
-          // Honour the DB's unique constraint: one row per (productId, size)
-          const exists = s.items.some(
+          const idx = s.items.findIndex(
             (x) => x.productId === item.productId && x.size === item.size
           );
-          if (exists) return s;
-          return { items: [...s.items, item] };
+          if (idx !== -1) {
+            const items = s.items.map((x, i) =>
+              i === idx ? { ...x, qty: x.qty + 1 } : x
+            );
+            return { items };
+          }
+          return { items: [...s.items, { ...item, qty: 1 }] };
         });
       },
 
@@ -81,6 +88,16 @@ export const useCartStore = create<CartStore>()(
 
       removeItem: (index) =>
         set((s) => ({ items: s.items.filter((_, i) => i !== index) })),
+
+      setQty: (index, qty) => {
+        if (qty <= 0) {
+          set((s) => ({ items: s.items.filter((_, i) => i !== index) }));
+        } else {
+          set((s) => ({
+            items: s.items.map((x, i) => (i === index ? { ...x, qty } : x)),
+          }));
+        }
+      },
 
       clearCart: () => set({ items: [] }),
 
@@ -96,6 +113,7 @@ export const useCartStore = create<CartStore>()(
           tamil: d.product.tamil,
           size: d.size as Size,
           amount: d.amount,
+          qty: d.qty,
           image: d.product.image,
         }));
         set({ items: synced });
@@ -114,7 +132,7 @@ export const useCartStore = create<CartStore>()(
         return changed;
       },
 
-      subtotal: () => get().items.reduce((s, c) => s + c.amount, 0),
+      subtotal: () => get().items.reduce((s, c) => s + c.amount * c.qty, 0),
       shippingCost: () => shippingFor(get().subtotal(), get().shippingRule),
       total: () => get().subtotal() + get().shippingCost(),
 

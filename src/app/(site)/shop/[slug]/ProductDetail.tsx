@@ -22,6 +22,11 @@ export function ProductDetail({ product }: Props) {
   const price = priceFor(product, size);
 
   const handleAdd = async () => {
+    const existing = useCartStore
+      .getState()
+      .items.find((x) => x.productId === product.id && x.size === size);
+    const newQty = (existing?.qty ?? 0) + 1;
+
     addItem({
       productId: product.id,
       title: product.title,
@@ -42,6 +47,7 @@ export function ProductDetail({ product }: Props) {
             productId: product.id,
             size,
             amount: price,
+            qty: newQty,
           }),
         });
       } catch {

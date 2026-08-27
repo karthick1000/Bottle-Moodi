@@ -21,6 +21,7 @@ const verifyPaymentSchema = z.object({
       z.object({
         productId: z.number().int().positive(),
         size:      z.string().min(1),
+        qty:       z.number().int().positive().default(1),
         // Accepted but ignored — the cart is repriced from the DB below.
         amount:    z.number().int().positive().optional(),
       })

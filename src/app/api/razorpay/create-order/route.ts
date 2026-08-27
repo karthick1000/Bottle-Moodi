@@ -17,6 +17,7 @@ const createOrderSchema = z.object({
       z.object({
         productId: z.number().int().positive(),
         size:      z.string().min(1),
+        qty:       z.number().int().positive().default(1),
       })
     )
     .min(1),

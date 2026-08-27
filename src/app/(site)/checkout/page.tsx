@@ -213,7 +213,7 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: items.map((i) => ({ productId: i.productId, size: i.size })),
+          items: items.map((i) => ({ productId: i.productId, size: i.size, qty: i.qty })),
           ...(discount > 0 && code ? { discountCode: code.toUpperCase() } : {}),
         }),
       });
@@ -271,6 +271,7 @@ export default function CheckoutPage() {
           items: items.map((i) => ({
             productId: i.productId,
             size:      i.size,
+            qty:       i.qty,
             amount:    i.amount,
           })),
           address: {
@@ -456,9 +457,14 @@ export default function CheckoutPage() {
                     </div>
                     <span className="flex-1 min-w-0 text-[13px] md:text-[14px] leading-snug">
                       {c.title} · {c.size}
+                      {c.qty > 1 && (
+                        <span className="font-mono text-[10.5px] text-[#6e6455] ml-1.5 tabular-nums">
+                          ×{c.qty}
+                        </span>
+                      )}
                     </span>
                     <span className="font-mono text-[11.5px] md:text-[12.5px] shrink-0 tabular-nums">
-                      {money(c.amount)}
+                      {money(c.amount * c.qty)}
                     </span>
                   </div>
                 ))
