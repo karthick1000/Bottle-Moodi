@@ -27,6 +27,7 @@ export async function getUserCart(clerkUserId: string) {
   return rows.map(({ product, ...row }) => ({
     ...row,
     amount: priceFor(product, row.size as Size),
+    qty: row.qty,
     product: {
       slug: product.slug,
       title: product.title,
@@ -40,12 +41,24 @@ export async function addOrUpdateCartItem(
   clerkUserId: string,
   productId: number,
   size: string,
-  amount: number
+  amount: number,
+  qty: number = 1
 ) {
   return prisma.cartItem.upsert({
     where: { clerkUserId_productId_size: { clerkUserId, productId, size } },
-    create: { clerkUserId, productId, size, amount },
-    update: { amount },
+    create: { clerkUserId, productId, size, amount, qty },
+    update: { amount, qty },
+  });
+}
+
+export async function updateCartItemQty(
+  id: number,
+  clerkUserId: string,
+  qty: number
+) {
+  return prisma.cartItem.updateMany({
+    where: { id, clerkUserId },
+    data: { qty },
   });
 }
 

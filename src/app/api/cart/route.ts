@@ -22,7 +22,8 @@ export async function POST(req: NextRequest) {
       userId,
       body.productId,
       body.size,
-      body.amount
+      body.amount,
+      body.qty ?? 1
     );
     return jsonOk(item);
   } catch (res) {
